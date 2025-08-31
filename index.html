@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WeblessHunter - Find Businesses Without Websites</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+    <div class="dashboard">
+        <!-- Sidebar/Search Panel -->
+        <div class="sidebar">
+            <header>
+                <h1>🎯 WeblessHunter</h1>
+                <p>Hunt down businesses without websites</p>
+            </header>
+
+            <div class="search-section">
+                <div class="input-group">
+                    <label for="location">Location</label>
+                    <input type="text" id="location" placeholder="Enter location or coordinates">
+                    <button onclick="useCurrentLocation()" class="btn-secondary">📍 Current Location</button>
+                </div>
+                
+                <div class="control-group">
+                    <label for="businessType">Business Type</label>
+                    <select id="businessType">
+                        <option value="all">All Types</option>
+                        <option value="restaurant">Restaurants</option>
+                        <option value="store">Retail Stores</option>
+                        <option value="beauty_salon">Beauty Salons</option>
+                        <option value="gym">Gyms & Fitness</option>
+                        <option value="car_repair">Auto Services</option>
+                        <option value="lawyer">Legal Services</option>
+                        <option value="dentist">Healthcare</option>
+                        <option value="real_estate_agency">Real Estate</option>
+                        <option value="accounting">Accounting</option>
+                        <option value="plumber">Home Services</option>
+                    </select>
+                </div>
+
+                <div class="control-group">
+                    <label for="searchIntensity">Search Intensity</label>
+                    <select id="searchIntensity">
+                        <option value="hyperlocal">🏠 Walking Distance (0.1-1km)</option>
+                        <option value="neighborhood">🏘️ Neighborhood (0.1-2km)</option>
+                        <option value="district">🌆 District (0.1-5km)</option>
+                        <option value="citywide">🏙️ Citywide (0.1-20km)</option>
+                        <option value="regional">🌍 Regional (0.1-50km)</option>
+                    </select>
+                </div>
+                
+                <button onclick="searchBusinesses()" class="btn-primary" id="searchBtn">
+                    <div class="btn-content">
+                        <div class="search-radar-btn"></div>
+                        <span id="btnText">🔍 Find All Businesses</span>
+                    </div>
+                    <div class="progress-bar-btn" id="btnProgress"></div>
+                </button>
+
+                <div class="search-status" id="searchStatus">
+                    <div class="status-text" id="statusText">Initializing search...</div>
+                    <div class="status-details" id="statusDetails">Preparing to scan your area</div>
+                    <div class="status-stats">
+                        <div class="status-stat">
+                            <span class="status-stat-value" id="areasScanned">0</span>
+                            <span class="status-stat-label">Areas</span>
+                        </div>
+                        <div class="status-stat">
+                            <span class="status-stat-value" id="businessesFound">0</span>
+                            <span class="status-stat-label">Found</span>
+                        </div>
+                        <div class="status-stat">
+                            <span class="status-stat-value" id="potentialClients">0</span>
+                            <span class="status-stat-label">Clients</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="stats-panel">
+                    <h3>Search Statistics</h3>
+                    <div class="stat-item">
+                        <span class="stat-label">Total Found:</span>
+                        <span class="stat-value" id="totalFound">0</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Without Website:</span>
+                        <span class="stat-value" id="withoutWebsite">0</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Potential Revenue:</span>
+                        <span class="stat-value" id="potentialRevenue">$0</span>
+                    </div>
+                </div>
+
+                <div class="export-section">
+                    <h3>Export Data</h3>
+                    <button onclick="exportToCSV()" class="btn-secondary">📊 Export CSV</button>
+                    <button onclick="exportToJSON()" class="btn-secondary">📄 Export JSON</button>
+                    <button onclick="bulkContact()" class="btn-secondary" id="contactSelectedBtn" disabled>📞 Contact Selected</button>
+                    <div class="selected-info" id="selectedInfo" style="display: none;">
+                        <span id="selectedCount">0 selected</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Content Area -->
+        <div class="main-content">
+            <div class="toolbar">
+                <div class="search-info">
+                    <h2 id="results-title">Ready to Search</h2>
+                    <p id="results-subtitle">Enter a location to find businesses without websites</p>
+                </div>
+                <div class="toolbar-actions">
+                    <input type="text" id="searchFilter" placeholder="Filter results..." oninput="filterResults()">
+                    <select id="sortBy" onchange="sortResults()">
+                        <option value="distance">Sort by Distance</option>
+                        <option value="name">Sort by Name</option>
+                        <option value="rating">Sort by Rating</option>
+                        <option value="priority">Sort by Priority</option>
+                    </select>
+                    <button onclick="selectAll()" class="btn-secondary">Select All</button>
+                </div>
+            </div>
+
+            <!-- View Tabs -->
+            <div class="view-tabs">
+                <button class="tab-btn active" onclick="switchView('table')" id="tableTab">📊 Table View</button>
+                <button class="tab-btn" onclick="switchView('map')" id="mapTab">🗺️ Map View</button>
+            </div>
+
+            <!-- Table View -->
+            <div class="table-container" id="tableView">
+                <table id="results-table">
+                    <thead>
+                        <tr>
+                            <th><input type="checkbox" id="selectAllCheckbox" onchange="toggleSelectAll()"></th>
+                            <th>Business Name</th>
+                            <th>Phone Number</th>
+                            <th>Address</th>
+                            <th>Distance</th>
+                            <th>Rating</th>
+                            <th>Estimated Value</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="results-body">
+                        <tr class="empty-state">
+                            <td colspan="8">
+                                <div class="empty-content">
+                                    <div class="empty-icon">🔍</div>
+                                    <h3>No search results yet</h3>
+                                    <p>Use the search panel to find businesses without websites</p>
+                                </div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Map View -->
+            <div class="map-container" id="mapView" style="display: none;">
+                <div class="map-controls">
+                    <div class="map-filter-controls">
+                        <label class="radio-label">
+                            <input type="radio" name="mapFilter" value="all" checked onchange="filterMapView()">
+                            <span>🏢 All Businesses</span>
+                        </label>
+                        <label class="radio-label">
+                            <input type="radio" name="mapFilter" value="potential" onchange="filterMapView()">
+                            <span>💰 Potential Clients Only</span>
+                        </label>
+                        <label class="radio-label">
+                            <input type="radio" name="mapFilter" value="withWebsites" onchange="filterMapView()">
+                            <span>🌐 Businesses With Websites Only</span>
+                        </label>
+                    </div>
+                </div>
+                <div id="resultsMap" style="width: 100%; height: calc(100% - 60px); border-radius: 8px;"></div>
+            </div>
+        </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+    <script async defer 
+        src="https://maps.googleapis.com/maps/api/js?key=AIzaSyD8wMGrkFzthfIq4kc9CuIWLGPHdInO9j0&libraries=places&callback=initMap&loading=async">
+    </script>
+</body>
+</html>

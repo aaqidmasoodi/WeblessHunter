@@ -1,0 +1,1741 @@
+let map, service;
+let currentResults = [];
+let selectedBusinesses = [];
+let allFoundBusinesses = []; // Track ALL businesses found during search
+let searchProgress = {
+    totalAreas: 0,
+    completedAreas: 0,
+    totalBusinesses: 0,
+    potentialClients: 0
+};
+let searchMap, resultsMap;
+let searchMarkers = [];
+let currentView = 'table';
+let searchCircles = [];
+let businessMarkers = new Map(); // Track markers by place_id
+
+function initMap() {
+    map = new google.maps.Map(document.createElement('div'));
+    service = new google.maps.places.PlacesService(map);
+    
+    // Load saved state after map is initialized
+    setTimeout(() => {
+        loadSearchState();
+    }, 100);
+}
+
+function switchView(view) {
+    currentView = view;
+    
+    // Update tab buttons
+    document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+    document.getElementById(view + 'Tab').classList.add('active');
+    
+    // Show/hide views
+    if (view === 'table') {
+        document.getElementById('tableView').style.display = 'block';
+        document.getElementById('mapView').style.display = 'none';
+    } else {
+        document.getElementById('tableView').style.display = 'none';
+        document.getElementById('mapView').style.display = 'block';
+        
+        // Initialize map view
+        if (allFoundBusinesses.length > 0) {
+            // We have saved data, restore complete map
+            const savedState = JSON.parse(localStorage.getItem('businessFinderState') || '{}');
+            restoreCompleteMap(savedState.searchCenter, savedState.searchCirclesData);
+        } else {
+            // No saved data, show default map
+            initializeMapView();
+        }
+    }
+    
+    // Save state when view changes
+    if (currentResults.length > 0) {
+        saveSearchState();
+    }
+}
+
+function initializeMapView() {
+    // Initialize map if it doesn't exist
+    if (!resultsMap) {
+        resultsMap = new google.maps.Map(document.getElementById('resultsMap'), {
+            zoom: 13,
+            center: { lat: 53.3498, lng: -6.2603 }, // Default to Dublin
+            styles: [
+                {
+                    featureType: 'poi',
+                    elementType: 'labels',
+                    stylers: [{ visibility: 'off' }]
+                },
+                {
+                    featureType: 'all',
+                    elementType: 'geometry',
+                    stylers: [{ saturation: -20 }]
+                }
+            ]
+        });
+    }
+    
+    // If we have search results, show them
+    if (currentResults.length > 0) {
+        showResultsMap();
+    } else {
+        // Show default map with current location if available
+        showDefaultMap();
+    }
+}
+
+function showDefaultMap() {
+    const locationInput = document.getElementById('location').value;
+    
+    if (locationInput) {
+        // Try to show the entered location
+        getCoordinates(locationInput).then(location => {
+            resultsMap.setCenter({ lat: location.lat, lng: location.lng });
+            resultsMap.setZoom(15);
+            
+            // Add a pin for the location
+            new google.maps.Marker({
+                position: { lat: location.lat, lng: location.lng },
+                map: resultsMap,
+                title: 'Search Location',
+                icon: {
+                    url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(`
+                        <svg width="30" height="30" viewBox="0 0 30 30" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <circle cx="15" cy="15" r="12" fill="#3b82f6" stroke="white" stroke-width="3"/>
+                            <circle cx="15" cy="15" r="5" fill="white"/>
+                        </svg>
+                    `),
+                    scaledSize: new google.maps.Size(30, 30)
+                }
+            });
+        }).catch(() => {
+            // If location parsing fails, try to get current location
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(position => {
+                    const lat = position.coords.latitude;
+                    const lng = position.coords.longitude;
+                    resultsMap.setCenter({ lat, lng });
+                    resultsMap.setZoom(15);
+                    
+                    new google.maps.Marker({
+                        position: { lat, lng },
+                        map: resultsMap,
+                        title: 'Your Location',
+                        icon: {
+                            url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(`
+                                <svg width="30" height="30" viewBox="0 0 30 30" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <circle cx="15" cy="15" r="12" fill="#3b82f6" stroke="white" stroke-width="3"/>
+                                    <circle cx="15" cy="15" r="5" fill="white"/>
+                                </svg>
+                            `),
+                            scaledSize: new google.maps.Size(30, 30)
+                        }
+                    });
+                });
+            }
+        });
+    } else if (navigator.geolocation) {
+        // No location entered, try to get current location
+        navigator.geolocation.getCurrentPosition(position => {
+            const lat = position.coords.latitude;
+            const lng = position.coords.longitude;
+            resultsMap.setCenter({ lat, lng });
+            resultsMap.setZoom(15);
+            
+            new google.maps.Marker({
+                position: { lat, lng },
+                map: resultsMap,
+                title: 'Your Location',
+                icon: {
+                    url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(`
+                        <svg width="30" height="30" viewBox="0 0 30 30" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <circle cx="15" cy="15" r="12" fill="#3b82f6" stroke="white" stroke-width="3"/>
+                            <circle cx="15" cy="15" r="5" fill="white"/>
+                        </svg>
+                    `),
+                    scaledSize: new google.maps.Size(30, 30)
+                }
+            });
+        });
+    }
+}
+
+// localStorage functions
+function saveSearchState() {
+    const searchState = {
+        currentResults: currentResults,
+        selectedBusinesses: selectedBusinesses,
+        allFoundBusinesses: allFoundBusinesses, // Save ALL businesses found
+        searchProgress: searchProgress,
+        currentView: currentView,
+        searchLocation: document.getElementById('location').value,
+        businessType: document.getElementById('businessType').value,
+        searchIntensity: document.getElementById('searchIntensity').value,
+        searchCenter: resultsMap ? {
+            lat: resultsMap.getCenter().lat(),
+            lng: resultsMap.getCenter().lng(),
+            zoom: resultsMap.getZoom()
+        } : null,
+        // Save all search circles data
+        searchCirclesData: searchCircles.map(circle => ({
+            center: {
+                lat: circle.getCenter().lat(),
+                lng: circle.getCenter().lng()
+            },
+            radius: circle.getRadius(),
+            strokeColor: circle.get('strokeColor'),
+            strokeOpacity: circle.get('strokeOpacity'),
+            strokeWeight: circle.get('strokeWeight'),
+            fillColor: circle.get('fillColor'),
+            fillOpacity: circle.get('fillOpacity')
+        })),
+        timestamp: Date.now()
+    };
+    
+    localStorage.setItem('businessFinderState', JSON.stringify(searchState));
+    console.log('Search state saved to localStorage with', searchState.searchCirclesData.length, 'circles');
+}
+
+function loadSearchState() {
+    const savedState = localStorage.getItem('businessFinderState');
+    if (!savedState) return false;
+    
+    try {
+        const searchState = JSON.parse(savedState);
+        
+        // Restore form values
+        document.getElementById('location').value = searchState.searchLocation || '';
+        document.getElementById('businessType').value = searchState.businessType || 'all';
+        document.getElementById('searchIntensity').value = searchState.searchIntensity || 'hyperlocal';
+        
+        // Restore results and progress
+        currentResults = searchState.currentResults || [];
+        selectedBusinesses = searchState.selectedBusinesses || [];
+        allFoundBusinesses = searchState.allFoundBusinesses || []; // Restore ALL businesses
+        searchProgress = searchState.searchProgress || { totalAreas: 0, completedAreas: 0, totalBusinesses: 0, potentialClients: 0 };
+        
+        // Restore view
+        if (searchState.currentView) {
+            currentView = searchState.currentView;
+            // Update tab buttons
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            document.getElementById(currentView + 'Tab').classList.add('active');
+            
+            // Show/hide views
+            if (currentView === 'table') {
+                document.getElementById('tableView').style.display = 'block';
+                document.getElementById('mapView').style.display = 'none';
+            } else {
+                document.getElementById('tableView').style.display = 'none';
+                document.getElementById('mapView').style.display = 'block';
+            }
+        }
+        
+        // Restore UI
+        if (currentResults.length > 0) {
+            displayResults(currentResults);
+            updateStats(searchProgress.totalBusinesses, currentResults.length, currentResults.reduce((sum, b) => sum + b.estimatedValue, 0));
+        }
+        
+        // Force restore map if we have data and we're in map view
+        if (allFoundBusinesses.length > 0 && currentView === 'map') {
+            setTimeout(() => {
+                console.log('Force restoring map with', allFoundBusinesses.length, 'businesses');
+                restoreCompleteMap(searchState.searchCenter, searchState.searchCirclesData);
+            }, 1000); // Longer delay to ensure map container is ready
+        }
+        
+        updateBulkActions();
+        console.log('Search state loaded from localStorage');
+        return true;
+        
+    } catch (error) {
+        console.log('Error loading search state:', error);
+        localStorage.removeItem('businessFinderState');
+        return false;
+    }
+}
+
+function restoreCompleteMap(searchCenter, savedCircles) {
+    console.log('=== RESTORING COMPLETE MAP ===');
+    console.log('Businesses to restore:', allFoundBusinesses.length);
+    console.log('Circles to restore:', savedCircles ? savedCircles.length : 0);
+    console.log('Search center:', searchCenter);
+    
+    // Initialize map if it doesn't exist
+    if (!resultsMap) {
+        console.log('Creating new map...');
+        resultsMap = new google.maps.Map(document.getElementById('resultsMap'), {
+            zoom: searchCenter ? searchCenter.zoom : 13,
+            center: searchCenter ? { lat: searchCenter.lat, lng: searchCenter.lng } : { lat: 53.3498, lng: -6.2603 },
+            styles: [
+                {
+                    featureType: 'poi',
+                    elementType: 'labels',
+                    stylers: [{ visibility: 'off' }]
+                },
+                {
+                    featureType: 'all',
+                    elementType: 'geometry',
+                    stylers: [{ saturation: -20 }]
+                }
+            ]
+        });
+    }
+    
+    // Clear existing markers and circles
+    console.log('Clearing existing markers:', searchMarkers.length);
+    searchMarkers.forEach(marker => marker.setMap(null));
+    searchMarkers = [];
+    businessMarkers.clear();
+    
+    searchCircles.forEach(circle => circle.setMap(null));
+    searchCircles = [];
+    
+    // Restore search circles FIRST (so they appear behind pins)
+    if (savedCircles && savedCircles.length > 0) {
+        console.log('Restoring', savedCircles.length, 'search circles...');
+        savedCircles.forEach((circleData, index) => {
+            const restoredCircle = new google.maps.Circle({
+                strokeColor: circleData.strokeColor,
+                strokeOpacity: circleData.strokeOpacity,
+                strokeWeight: circleData.strokeWeight,
+                fillColor: circleData.fillColor,
+                fillOpacity: circleData.fillOpacity,
+                map: resultsMap,
+                center: { lat: circleData.center.lat, lng: circleData.center.lng },
+                radius: circleData.radius
+            });
+            
+            searchCircles.push(restoredCircle);
+            console.log(`Restored circle ${index + 1}: radius ${(circleData.radius/1000).toFixed(1)}km`);
+        });
+    }
+    
+    // Add center marker if we have search center
+    if (searchCenter) {
+        console.log('Adding center marker...');
+        const centerMarker = new google.maps.Marker({
+            position: { lat: searchCenter.lat, lng: searchCenter.lng },
+            map: resultsMap,
+            title: 'Search Center',
+            icon: {
+                url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(`
+                    <svg width="30" height="30" viewBox="0 0 30 30" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <circle cx="15" cy="15" r="12" fill="#3b82f6" stroke="white" stroke-width="3"/>
+                        <circle cx="15" cy="15" r="5" fill="white"/>
+                    </svg>
+                `),
+                scaledSize: new google.maps.Size(30, 30)
+            }
+        });
+        searchMarkers.push(centerMarker);
+    }
+    
+    // Plot all businesses exactly like during search
+    console.log('Plotting businesses...');
+    let plottedCount = 0;
+    allFoundBusinesses.forEach((business, index) => {
+        console.log(`Business ${index + 1}: ${business.name}`);
+        console.log('  - Has savedLat:', !!business.savedLat);
+        console.log('  - Has savedLng:', !!business.savedLng);
+        console.log('  - Has website:', business.hasWebsite);
+        
+        if (business.savedLat && business.savedLng) {
+            const position = {
+                lat: parseFloat(business.savedLat),
+                lng: parseFloat(business.savedLng)
+            };
+            
+            console.log('  - Position:', position);
+            
+            // Choose icon based on website status
+            let iconSvg, size;
+            if (business.hasWebsite) {
+                // Red pin for businesses with websites
+                iconSvg = `
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <circle cx="8" cy="8" r="6" fill="#dc2626" stroke="white" stroke-width="2"/>
+                    </svg>
+                `;
+                size = new google.maps.Size(16, 16);
+            } else {
+                // Green pin for potential clients
+                iconSvg = `
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <circle cx="12" cy="12" r="10" fill="#16a34a" stroke="white" stroke-width="3"/>
+                        <text x="12" y="16" text-anchor="middle" fill="white" font-size="12" font-weight="bold">$</text>
+                    </svg>
+                `;
+                size = new google.maps.Size(24, 24);
+            }
+            
+            const marker = new google.maps.Marker({
+                position: position,
+                map: resultsMap,
+                title: business.name,
+                icon: {
+                    url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(iconSvg),
+                    scaledSize: size
+                }
+            });
+            
+            console.log('  - Marker created successfully');
+            
+            // Add info windows
+            if (!business.hasWebsite && business.formatted_phone_number) {
+                const distance = business.distance < 1 ? 
+                    Math.round(business.distance * 1000) + 'm' : 
+                    business.distance.toFixed(1) + 'km';
+                    
+                const infoWindow = new google.maps.InfoWindow({
+                    content: `
+                        <div style="padding: 8px; min-width: 200px;">
+                            <h3 style="margin: 0 0 8px 0; font-size: 16px; color: #16a34a;">${business.name}</h3>
+                            <p style="margin: 0 0 4px 0; font-size: 12px; color: #666;">${business.businessType || 'Business'}</p>
+                            <p style="margin: 0 0 4px 0; font-size: 12px;"><strong>Distance:</strong> ${distance}</p>
+                            <p style="margin: 0 0 8px 0; font-size: 12px;"><strong>Potential Value:</strong> $${business.estimatedValue ? business.estimatedValue.toLocaleString() : '2,500'}</p>
+                            <a href="tel:${business.formatted_phone_number}" style="color: #16a34a; text-decoration: none; font-weight: 600; font-size: 14px;">📞 ${business.formatted_phone_number}</a>
+                        </div>
+                    `
+                });
+                
+                marker.addListener('click', () => {
+                    infoWindow.open(resultsMap, marker);
+                });
+            } else if (business.hasWebsite) {
+                const infoWindow = new google.maps.InfoWindow({
+                    content: `
+                        <div style="padding: 8px; min-width: 150px;">
+                            <h3 style="margin: 0 0 8px 0; font-size: 16px; color: #dc2626;">${business.name}</h3>
+                            <p style="margin: 0 0 4px 0; font-size: 12px; color: #666;">${business.businessType || 'Business'}</p>
+                            <p style="margin: 0; font-size: 12px; color: #16a34a;">✅ Has Website</p>
+                        </div>
+                    `
+                });
+                
+                marker.addListener('click', () => {
+                    infoWindow.open(resultsMap, marker);
+                });
+            }
+            
+            businessMarkers.set(business.place_id, marker);
+            searchMarkers.push(marker);
+            plottedCount++;
+        } else {
+            console.log(`  - Skipping: no saved coordinates`);
+        }
+    });
+    
+    console.log(`Successfully plotted ${plottedCount} businesses`);
+    console.log('Total markers on map:', searchMarkers.length);
+    console.log('Total circles on map:', searchCircles.length);
+    
+    // Apply current filter
+    setTimeout(() => {
+        filterMapView();
+        console.log('Applied filter, restoration complete!');
+    }, 100);
+}
+
+function clearSearchState() {
+    localStorage.removeItem('businessFinderState');
+    allFoundBusinesses = []; // Clear the businesses array too
+    
+    // Clear any existing search circles
+    searchCircles.forEach(circle => circle.setMap(null));
+    searchCircles = [];
+    
+    // Stop all active radar sweeps
+    activeSweepIntervals.forEach((interval, radius) => {
+        clearInterval(interval);
+    });
+    activeSweepIntervals.clear();
+    
+    console.log('Previous search state cleared');
+}
+
+function initializeSearchMap(centerLocation) {
+    // Clear existing map
+    if (resultsMap) {
+        searchMarkers.forEach(marker => marker.setMap(null));
+        searchCircles.forEach(circle => circle.setMap(null));
+        searchMarkers = [];
+        searchCircles = [];
+        businessMarkers.clear();
+    }
+    
+    // Initialize results map for search animation
+    resultsMap = new google.maps.Map(document.getElementById('resultsMap'), {
+        center: { lat: centerLocation.lat, lng: centerLocation.lng },
+        zoom: 13,
+        styles: [
+            {
+                featureType: 'poi',
+                elementType: 'labels',
+                stylers: [{ visibility: 'off' }]
+            },
+            {
+                featureType: 'all',
+                elementType: 'geometry',
+                stylers: [{ saturation: -20 }]
+            }
+        ]
+    });
+    
+    // Add center marker with pulsing animation
+    const centerMarker = new google.maps.Marker({
+        position: { lat: centerLocation.lat, lng: centerLocation.lng },
+        map: resultsMap,
+        title: 'Search Center',
+        icon: {
+            url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(`
+                <svg width="30" height="30" viewBox="0 0 30 30" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <circle cx="15" cy="15" r="12" fill="#3b82f6" stroke="white" stroke-width="3"/>
+                    <circle cx="15" cy="15" r="5" fill="white"/>
+                    <circle cx="15" cy="15" r="15" fill="none" stroke="#3b82f6" stroke-width="2" opacity="0.3">
+                        <animate attributeName="r" values="15;25;15" dur="2s" repeatCount="indefinite"/>
+                        <animate attributeName="opacity" values="0.3;0;0.3" dur="2s" repeatCount="indefinite"/>
+                    </circle>
+                </svg>
+            `),
+            scaledSize: new google.maps.Size(30, 30)
+        }
+    });
+    
+    searchMarkers.push(centerMarker);
+}
+
+let activeSweepIntervals = new Map(); // Track active sweep intervals by radius
+
+function showSearchCircle(centerLocation, radius) {
+    if (!resultsMap) return;
+    
+    // Calculate zoom level
+    let zoom = 15;
+    if (radius > 40000) zoom = 9;
+    else if (radius > 20000) zoom = 10;
+    else if (radius > 10000) zoom = 11;
+    else if (radius > 5000) zoom = 12;
+    else if (radius > 2000) zoom = 13;
+    else if (radius > 1000) zoom = 14;
+    
+    // Animate to appropriate zoom
+    resultsMap.setZoom(zoom);
+    
+    // Create permanent search circle (stays visible)
+    const permanentCircle = new google.maps.Circle({
+        strokeColor: '#16a34a',
+        strokeOpacity: 0.6,
+        strokeWeight: 2,
+        fillColor: '#16a34a',
+        fillOpacity: 0.1,
+        map: resultsMap,
+        center: { lat: centerLocation.lat, lng: centerLocation.lng },
+        radius: radius
+    });
+    
+    searchCircles.push(permanentCircle);
+    
+    // Start continuous sweeping radar effect
+    const sweepInterval = setInterval(() => {
+        const sweepCircle = new google.maps.Circle({
+            strokeColor: '#16a34a',
+            strokeOpacity: 0.8,
+            strokeWeight: 3,
+            fillColor: '#16a34a',
+            fillOpacity: 0.3,
+            map: resultsMap,
+            center: { lat: centerLocation.lat, lng: centerLocation.lng },
+            radius: radius * 0.1
+        });
+        
+        // Animate sweep expansion
+        let sweepRadius = radius * 0.1;
+        const expandInterval = setInterval(() => {
+            sweepRadius += radius * 0.05;
+            
+            if (sweepRadius >= radius) {
+                sweepCircle.setMap(null);
+                clearInterval(expandInterval);
+            } else {
+                sweepCircle.setRadius(sweepRadius);
+            }
+        }, 30);
+        
+    }, 600); // New sweep every 600ms
+    
+    // Store the interval so we can stop it later
+    activeSweepIntervals.set(radius, sweepInterval);
+}
+
+function stopRadarSweep(radius) {
+    const sweepInterval = activeSweepIntervals.get(radius);
+    if (sweepInterval) {
+        clearInterval(sweepInterval);
+        activeSweepIntervals.delete(radius);
+        console.log(`Stopped radar sweep for radius ${radius}m`);
+    }
+}
+
+function plotBusinessOnMap(business, status) {
+    if (!resultsMap || !business.geometry) return;
+    
+    const position = {
+        lat: business.geometry.location.lat(),
+        lng: business.geometry.location.lng()
+    };
+    
+    // Create marker based on status
+    let iconSvg, size;
+    
+    if (status === 'found') {
+        // Small red pin for newly found business
+        iconSvg = `
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="8" cy="8" r="6" fill="#dc2626" stroke="white" stroke-width="2"/>
+            </svg>
+        `;
+        size = new google.maps.Size(16, 16);
+        
+        // Add to allFoundBusinesses when first found with ACTUAL coordinates
+        if (!allFoundBusinesses.find(b => b.place_id === business.place_id)) {
+            allFoundBusinesses.push({
+                ...business,
+                hasWebsite: true, // Assume has website until proven otherwise
+                // Save actual coordinates as numbers, not geometry functions
+                savedLat: position.lat,
+                savedLng: position.lng
+            });
+        }
+    } else {
+        // Larger green pin for businesses without websites
+        iconSvg = `
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="12" cy="12" r="10" fill="#16a34a" stroke="white" stroke-width="3"/>
+                <text x="12" y="16" text-anchor="middle" fill="white" font-size="12" font-weight="bold">$</text>
+            </svg>
+        `;
+        size = new google.maps.Size(24, 24);
+        
+        // Update in allFoundBusinesses with ACTUAL coordinates
+        const foundBusiness = allFoundBusinesses.find(b => b.place_id === business.place_id);
+        if (foundBusiness) {
+            foundBusiness.hasWebsite = false;
+            Object.assign(foundBusiness, business);
+            // Save actual coordinates as numbers
+            foundBusiness.savedLat = position.lat;
+            foundBusiness.savedLng = position.lng;
+        }
+    }
+    
+    const marker = new google.maps.Marker({
+        position: position,
+        map: resultsMap,
+        title: business.name,
+        icon: {
+            url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(iconSvg),
+            scaledSize: size
+        },
+        animation: status === 'found' ? google.maps.Animation.DROP : google.maps.Animation.BOUNCE
+    });
+    
+    // Stop bounce animation after 1 second
+    if (status === 'potential') {
+        setTimeout(() => {
+            marker.setAnimation(null);
+        }, 1000);
+    }
+    
+    // Store marker for later updates
+    businessMarkers.set(business.place_id, marker);
+    searchMarkers.push(marker);
+    
+    // Add info window for potential clients
+    if (status === 'potential') {
+        const distance = business.distance < 1 ? 
+            Math.round(business.distance * 1000) + 'm' : 
+            business.distance.toFixed(1) + 'km';
+            
+        const infoWindow = new google.maps.InfoWindow({
+            content: `
+                <div style="padding: 8px; min-width: 200px;">
+                    <h3 style="margin: 0 0 8px 0; font-size: 16px; color: #16a34a;">${business.name}</h3>
+                    <p style="margin: 0 0 4px 0; font-size: 12px; color: #666;">${business.businessType}</p>
+                    <p style="margin: 0 0 4px 0; font-size: 12px;"><strong>Distance:</strong> ${distance}</p>
+                    <p style="margin: 0 0 8px 0; font-size: 12px;"><strong>Potential Value:</strong> $${business.estimatedValue.toLocaleString()}</p>
+                    <a href="tel:${business.formatted_phone_number}" style="color: #16a34a; text-decoration: none; font-weight: 600; font-size: 14px;">📞 ${business.formatted_phone_number}</a>
+                </div>
+            `
+        });
+        
+        marker.addListener('click', () => {
+            infoWindow.open(resultsMap, marker);
+        });
+    }
+}
+
+function filterMapView() {
+    const filterValue = document.querySelector('input[name="mapFilter"]:checked').value;
+    
+    if (!resultsMap || allFoundBusinesses.length === 0) return;
+    
+    // Clear existing markers
+    searchMarkers.forEach(marker => marker.setMap(null));
+    searchMarkers = [];
+    businessMarkers.clear();
+    
+    const bounds = new google.maps.LatLngBounds();
+    let businessesToShow = [];
+    
+    if (filterValue === 'all') {
+        businessesToShow = allFoundBusinesses;
+    } else if (filterValue === 'potential') {
+        businessesToShow = allFoundBusinesses.filter(b => !b.hasWebsite);
+    } else if (filterValue === 'withWebsites') {
+        businessesToShow = allFoundBusinesses.filter(b => b.hasWebsite);
+    }
+    
+    businessesToShow.forEach(business => {
+        if (business.savedLat && business.savedLng) {
+            const position = {
+                lat: parseFloat(business.savedLat),
+                lng: parseFloat(business.savedLng)
+            };
+            
+            // Choose icon based on website status
+            let iconSvg, size;
+            if (business.hasWebsite) {
+                // Red pin for businesses with websites
+                iconSvg = `
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <circle cx="8" cy="8" r="6" fill="#dc2626" stroke="white" stroke-width="2"/>
+                    </svg>
+                `;
+                size = new google.maps.Size(16, 16);
+            } else {
+                // Green pin for potential clients
+                iconSvg = `
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <circle cx="12" cy="12" r="10" fill="#16a34a" stroke="white" stroke-width="3"/>
+                        <text x="12" y="16" text-anchor="middle" fill="white" font-size="12" font-weight="bold">$</text>
+                    </svg>
+                `;
+                size = new google.maps.Size(24, 24);
+            }
+            
+            const marker = new google.maps.Marker({
+                position: position,
+                map: resultsMap,
+                title: business.name,
+                icon: {
+                    url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(iconSvg),
+                    scaledSize: size
+                }
+            });
+            
+            // Add info window for businesses without websites
+            if (!business.hasWebsite && business.formatted_phone_number) {
+                const distance = business.distance < 1 ? 
+                    Math.round(business.distance * 1000) + 'm' : 
+                    business.distance.toFixed(1) + 'km';
+                    
+                const infoWindow = new google.maps.InfoWindow({
+                    content: `
+                        <div style="padding: 8px; min-width: 200px;">
+                            <h3 style="margin: 0 0 8px 0; font-size: 16px; color: #16a34a;">${business.name}</h3>
+                            <p style="margin: 0 0 4px 0; font-size: 12px; color: #666;">${business.businessType || 'Business'}</p>
+                            <p style="margin: 0 0 4px 0; font-size: 12px;"><strong>Distance:</strong> ${distance}</p>
+                            <p style="margin: 0 0 8px 0; font-size: 12px;"><strong>Potential Value:</strong> $${business.estimatedValue ? business.estimatedValue.toLocaleString() : '2,500'}</p>
+                            <a href="tel:${business.formatted_phone_number}" style="color: #16a34a; text-decoration: none; font-weight: 600; font-size: 14px;">📞 ${business.formatted_phone_number}</a>
+                        </div>
+                    `
+                });
+                
+                marker.addListener('click', () => {
+                    infoWindow.open(resultsMap, marker);
+                });
+            } else if (business.hasWebsite) {
+                // Add basic info window for businesses with websites
+                const infoWindow = new google.maps.InfoWindow({
+                    content: `
+                        <div style="padding: 8px; min-width: 150px;">
+                            <h3 style="margin: 0 0 8px 0; font-size: 16px; color: #dc2626;">${business.name}</h3>
+                            <p style="margin: 0 0 4px 0; font-size: 12px; color: #666;">${business.businessType || 'Business'}</p>
+                            <p style="margin: 0; font-size: 12px; color: #16a34a;">✅ Has Website</p>
+                        </div>
+                    `
+                });
+                
+                marker.addListener('click', () => {
+                    infoWindow.open(resultsMap, marker);
+                });
+            }
+            
+            businessMarkers.set(business.place_id, marker);
+            searchMarkers.push(marker);
+            bounds.extend(position);
+        }
+    });
+    
+    // Fit map to show all markers
+    if (businessesToShow.length > 1) {
+        resultsMap.fitBounds(bounds);
+    } else if (businessesToShow.length === 1) {
+        resultsMap.setCenter(bounds.getCenter());
+        resultsMap.setZoom(15);
+    }
+}
+
+function updateBusinessMarker(business) {
+    const marker = businessMarkers.get(business.place_id);
+    if (marker) {
+        // Remove old red marker
+        marker.setMap(null);
+        // Add new green marker
+        plotBusinessOnMap(business, 'potential');
+    }
+}
+
+async function processBusinessesWithMap(places, centerLocation) {
+    const businessesWithoutWebsites = [];
+    const batchSize = 10;
+    let processed = 0;
+    
+    console.log(`Processing ${places.length} businesses for website analysis`);
+    
+    try {
+        for (let i = 0; i < places.length; i += batchSize) {
+            const batch = places.slice(i, i + batchSize);
+            
+            const batchPromises = batch.map(place => {
+                return new Promise((resolve) => {
+                    service.getDetails({
+                        placeId: place.place_id,
+                        fields: ['name', 'formatted_phone_number', 'website', 'formatted_address', 'rating', 'types', 'business_status']
+                    }, (details, status) => {
+                        processed++;
+                        
+                        try {
+                            if (status === google.maps.places.PlacesServiceStatus.OK && 
+                                details.business_status === 'OPERATIONAL' &&
+                                details.formatted_phone_number) {
+                                
+                                console.log(`Business: ${details.name}, Has website: ${!!details.website}`);
+                                
+                                if (!details.website) {
+                                    const business = {
+                                        ...details,
+                                        ...place, // Include geometry
+                                        distance: place.distance,
+                                        estimatedValue: calculateEstimatedValue(details),
+                                        businessType: getBusinessType(details.types),
+                                        priority: calculatePriority(details, place.distance)
+                                    };
+                                    
+                                    businessesWithoutWebsites.push(business);
+                                    searchProgress.potentialClients++;
+                                    
+                                    // Update marker to green potential client
+                                    updateBusinessMarker(business);
+                                }
+                            }
+                            
+                            updateLoadingStatus(
+                                `Analyzing business ${processed} of ${places.length}...`,
+                                `Found ${businessesWithoutWebsites.length} businesses without websites`
+                            );
+                        } catch (error) {
+                            console.log('Error processing business:', error);
+                        }
+                        
+                        resolve();
+                    });
+                });
+            });
+            
+            await Promise.all(batchPromises);
+            updateProgress();
+            
+            if (i + batchSize < places.length) {
+                await new Promise(resolve => setTimeout(resolve, 100));
+            }
+        }
+        
+        console.log(`Final results: ${businessesWithoutWebsites.length} businesses without websites`);
+        
+        businessesWithoutWebsites.sort((a, b) => a.distance - b.distance);
+        
+        hideLoading();
+        currentResults = businessesWithoutWebsites;
+        displayResults(businessesWithoutWebsites);
+        updateStats(searchProgress.totalBusinesses, businessesWithoutWebsites.length, businessesWithoutWebsites.reduce((sum, b) => sum + b.estimatedValue, 0));
+        
+        // Save state after search completes
+        saveSearchState();
+        
+    } catch (error) {
+        console.log('Error in processBusinessesWithMap:', error);
+        hideLoading();
+        alert('Search completed with some errors. Check console for details.');
+    }
+}
+
+function useCurrentLocation() {
+    if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(position => {
+            const lat = position.coords.latitude;
+            const lng = position.coords.longitude;
+            document.getElementById('location').value = `${lat}, ${lng}`;
+        }, error => {
+            alert('Unable to get your location. Please enter manually.');
+        });
+    } else {
+        alert('Geolocation not supported by this browser');
+    }
+}
+
+async function searchBusinesses() {
+    const locationInput = document.getElementById('location').value;
+    if (!locationInput) {
+        alert('Please enter a location');
+        return;
+    }
+
+    // Clear previous search state
+    clearSearchState();
+
+    showLoading();
+    clearResults();
+    resetProgress();
+
+    try {
+        const location = await getCoordinates(locationInput);
+        await findBusinessesWithoutWebsites(location);
+    } catch (error) {
+        alert('Error finding location: ' + error.message);
+        hideLoading();
+    }
+}
+
+function getCoordinates(locationInput) {
+    return new Promise((resolve, reject) => {
+        if (locationInput.includes(',')) {
+            const [lat, lng] = locationInput.split(',').map(coord => parseFloat(coord.trim()));
+            if (!isNaN(lat) && !isNaN(lng)) {
+                resolve({ lat, lng });
+            } else {
+                reject(new Error('Invalid coordinates format'));
+            }
+        } else {
+            const geocoder = new google.maps.Geocoder();
+            geocoder.geocode({ address: locationInput }, (results, status) => {
+                if (status === 'OK') {
+                    const location = results[0].geometry.location;
+                    resolve({ lat: location.lat(), lng: location.lng() });
+                } else {
+                    reject(new Error('Location not found'));
+                }
+            });
+        }
+    });
+}
+
+async function findBusinessesWithoutWebsites(location) {
+    // Get country code from coordinates for WhatsApp
+    currentCountryCode = await getCountryFromCoordinates(location.lat, location.lng);
+    
+    const businessType = document.getElementById('businessType').value;
+    const searchIntensity = document.getElementById('searchIntensity').value;
+    
+    // Switch to map view for search animation
+    switchView('map');
+    
+    // Updated search radii to match new intensity levels
+    const searchRadii = {
+        hyperlocal: [100, 250, 500, 750, 1000],           // 0.1km to 1km
+        neighborhood: [100, 250, 500, 1000, 1500, 2000],  // 0.1km to 2km  
+        district: [100, 500, 1000, 2000, 3000, 5000],     // 0.1km to 5km
+        citywide: [100, 1000, 2000, 5000, 10000, 15000, 20000], // 0.1km to 20km
+        regional: [100, 1000, 5000, 10000, 20000, 35000, 50000] // 0.1km to 50km
+    };
+    
+    const radii = searchRadii[searchIntensity];
+    searchProgress.totalAreas = radii.length;
+    
+    // Initialize search map
+    initializeSearchMap(location);
+    
+    updateLoadingStatus('Starting search...', `Searching ${radii.length} zones from 0.1km outward`);
+    
+    let allResults = [];
+    let seenPlaceIds = new Set();
+    let processedRadii = 0;
+    
+    for (const radius of radii) {
+        const radiusKm = (radius / 1000).toFixed(1);
+        updateLoadingStatus(
+            `Scanning ${radiusKm}km radius...`,
+            `Searching for businesses within ${radiusKm}km`
+        );
+        
+        // Show search circle animation
+        showSearchCircle(location, radius);
+        
+        const radiusResults = await searchRadius(location, radius, businessType);
+        
+        // Plot found businesses immediately (but only if they're within radius)
+        radiusResults.forEach(business => {
+            if (!seenPlaceIds.has(business.place_id)) {
+                // Calculate distance to check if business is actually within radius
+                const businessDistance = calculateDistance(location, {
+                    lat: business.geometry.location.lat(),
+                    lng: business.geometry.location.lng()
+                });
+                
+                // Only plot if within radius (convert radius from meters to km)
+                const radiusKm = radius / 1000;
+                if (businessDistance <= radiusKm) {
+                    plotBusinessOnMap(business, 'found');
+                } else {
+                    console.log(`Skipping ${business.name} - outside radius (${businessDistance.toFixed(2)}km > ${radiusKm}km)`);
+                }
+            }
+        });
+        
+        // Stop radar sweep for this radius after businesses are plotted
+        stopRadarSweep(radius);
+        
+        // Add only new businesses that are within the radius
+        const newResults = radiusResults.filter(result => {
+            if (seenPlaceIds.has(result.place_id)) {
+                return false;
+            }
+            
+            // Check if business is actually within radius
+            const businessDistance = calculateDistance(location, {
+                lat: result.geometry.location.lat(),
+                lng: result.geometry.location.lng()
+            });
+            
+            const radiusKm = radius / 1000;
+            if (businessDistance <= radiusKm) {
+                seenPlaceIds.add(result.place_id);
+                return true;
+            } else {
+                console.log(`Filtering out ${result.name} - outside radius (${businessDistance.toFixed(2)}km > ${radiusKm}km)`);
+                return false;
+            }
+        });
+        
+        allResults = allResults.concat(newResults);
+        processedRadii++;
+        
+        searchProgress.completedAreas = processedRadii;
+        searchProgress.totalBusinesses = allResults.length;
+        updateProgress();
+        
+        console.log(`Radius ${radiusKm}km: Found ${radiusResults.length} total, ${newResults.length} new businesses`);
+        
+        if (processedRadii < radii.length) {
+            await new Promise(resolve => setTimeout(resolve, 1500));
+        }
+    }
+    
+    updateLoadingStatus('Analyzing websites...', `Found ${allResults.length} unique businesses`);
+    
+    // Add distance calculation
+    const businessesWithDistance = allResults.map(business => ({
+        ...business,
+        distance: calculateDistance(location, {
+            lat: business.geometry.location.lat(),
+            lng: business.geometry.location.lng()
+        })
+    }));
+    
+    // Sort by distance
+    businessesWithDistance.sort((a, b) => a.distance - b.distance);
+    
+    // Process for websites and update pins
+    await processBusinessesWithMap(businessesWithDistance, location);
+}
+
+function updateOverlayStatus(status, details) {
+    const statusEl = document.getElementById('overlayStatus');
+    const detailsEl = document.getElementById('overlayDetails');
+    if (statusEl) statusEl.textContent = status;
+    if (detailsEl) detailsEl.textContent = details;
+}
+
+async function searchRadius(center, radius, businessType) {
+    const searchTypes = businessType === 'all' 
+        ? ['establishment', 'store', 'food', 'restaurant']
+        : [businessType];
+    
+    let radiusResults = [];
+    
+    for (const type of searchTypes) {
+        const request = {
+            location: new google.maps.LatLng(center.lat, center.lng),
+            radius: radius,
+            type: type
+        };
+        
+        try {
+            const results = await searchWithPagination(request);
+            radiusResults = radiusResults.concat(results);
+        } catch (error) {
+            console.log(`Search failed for type ${type}:`, error);
+        }
+        
+        await new Promise(resolve => setTimeout(resolve, 200));
+    }
+    
+    return radiusResults;
+}
+
+function searchWithPagination(request) {
+    return new Promise((resolve) => {
+        let pageResults = [];
+        
+        service.nearbySearch(request, function handleResults(results, status, pagination) {
+            if (status === google.maps.places.PlacesServiceStatus.OK) {
+                pageResults = pageResults.concat(results);
+                
+                if (pagination && pagination.hasNextPage && pageResults.length < 60) {
+                    setTimeout(() => {
+                        pagination.nextPage();
+                    }, 2000);
+                } else {
+                    resolve(pageResults);
+                }
+            } else {
+                console.log(`Search failed with status: ${status}`);
+                resolve(pageResults);
+            }
+        });
+    });
+}
+
+function calculateDistance(point1, point2) {
+    const R = 6371;
+    const dLat = (point2.lat - point1.lat) * Math.PI / 180;
+    const dLng = (point2.lng - point1.lng) * Math.PI / 180;
+    const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+              Math.cos(point1.lat * Math.PI / 180) * Math.cos(point2.lat * Math.PI / 180) *
+              Math.sin(dLng/2) * Math.sin(dLng/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    return R * c;
+}
+
+async function processBusinesses(places, centerLocation) {
+    const businessesWithoutWebsites = [];
+    const batchSize = 10;
+    let processed = 0;
+    
+    console.log(`Processing ${places.length} businesses for website analysis`);
+    
+    for (let i = 0; i < places.length; i += batchSize) {
+        const batch = places.slice(i, i + batchSize);
+        
+        const batchPromises = batch.map(place => {
+            return new Promise((resolve) => {
+                service.getDetails({
+                    placeId: place.place_id,
+                    fields: ['name', 'formatted_phone_number', 'website', 'formatted_address', 'rating', 'types', 'business_status']
+                }, (details, status) => {
+                    processed++;
+                    
+                    if (status === google.maps.places.PlacesServiceStatus.OK && 
+                        details.business_status === 'OPERATIONAL' &&
+                        details.formatted_phone_number) {
+                        
+                        console.log(`Business: ${details.name}, Has website: ${!!details.website}, Phone: ${!!details.formatted_phone_number}`);
+                        
+                        if (!details.website) {
+                            const business = {
+                                ...details,
+                                distance: place.distance,
+                                estimatedValue: calculateEstimatedValue(details),
+                                businessType: getBusinessType(details.types),
+                                priority: calculatePriority(details, place.distance)
+                            };
+                            
+                            businessesWithoutWebsites.push(business);
+                            searchProgress.potentialClients++;
+                        }
+                    }
+                    
+                    updateLoadingStatus(
+                        `Analyzing business ${processed} of ${places.length}...`,
+                        `Found ${businessesWithoutWebsites.length} businesses without websites`
+                    );
+                    
+                    resolve();
+                });
+            });
+        });
+        
+        await Promise.all(batchPromises);
+        updateProgress();
+        
+        if (i + batchSize < places.length) {
+            await new Promise(resolve => setTimeout(resolve, 100));
+        }
+    }
+    
+    console.log(`Final results: ${businessesWithoutWebsites.length} businesses without websites`);
+    
+    businessesWithoutWebsites.sort((a, b) => a.distance - b.distance);
+    
+    hideLoading();
+    currentResults = businessesWithoutWebsites;
+    displayResults(businessesWithoutWebsites);
+    updateStats(searchProgress.totalBusinesses, businessesWithoutWebsites.length, businessesWithoutWebsites.reduce((sum, b) => sum + b.estimatedValue, 0));
+}
+
+function calculateEstimatedValue(business) {
+    const baseValue = 2500;
+    const ratingMultiplier = business.rating ? (business.rating / 5) : 0.5;
+    return Math.round(baseValue * ratingMultiplier);
+}
+
+function getBusinessType(types) {
+    const typeMap = {
+        'restaurant': 'Restaurant',
+        'food': 'Food & Dining',
+        'store': 'Retail Store',
+        'beauty_salon': 'Beauty Salon',
+        'gym': 'Fitness',
+        'car_repair': 'Auto Service',
+        'lawyer': 'Legal',
+        'dentist': 'Healthcare'
+    };
+    
+    if (!types) return 'Business';
+    
+    for (let type of types) {
+        if (typeMap[type]) return typeMap[type];
+    }
+    return 'Business';
+}
+
+function calculatePriority(business, distance) {
+    let priority = 0;
+    
+    if (distance < 0.2) priority += 100;
+    else if (distance < 0.5) priority += 80;
+    else if (distance < 1.0) priority += 60;
+    else if (distance < 2.0) priority += 40;
+    
+    if (business.rating) {
+        priority += business.rating * 20;
+    }
+    
+    return priority;
+}
+
+function displayResults(businesses) {
+    const resultsBody = document.getElementById('results-body');
+    const resultsTitle = document.getElementById('results-title');
+    const resultsSubtitle = document.getElementById('results-subtitle');
+    
+    if (businesses.length === 0) {
+        resultsTitle.textContent = 'No Results Found';
+        resultsSubtitle.textContent = 'All businesses in this area already have websites';
+        resultsBody.innerHTML = `
+            <tr class="empty-state">
+                <td colspan="8">
+                    <div class="empty-content">
+                        <div class="empty-icon">🎉</div>
+                        <h3>Amazing! All businesses have websites</h3>
+                        <p>This area is well-covered digitally. Try searching a different location.</p>
+                    </div>
+                </td>
+            </tr>
+        `;
+        return;
+    }
+
+    resultsTitle.textContent = `🎯 Found ${businesses.length} Prospects`;
+    resultsSubtitle.textContent = `Sorted by distance - closest businesses first`;
+    
+    resultsBody.innerHTML = '';
+    
+    businesses.forEach((business, index) => {
+        const row = document.createElement('tr');
+        const distanceText = business.distance < 1 ? `${Math.round(business.distance * 1000)}m` : `${business.distance.toFixed(1)}km`;
+        
+        row.innerHTML = `
+            <td>
+                <input type="checkbox" onchange="toggleBusinessSelection(${index})" data-index="${index}">
+            </td>
+            <td>
+                <div class="business-name">${business.name}</div>
+                <div class="business-type">${business.businessType}</div>
+            </td>
+            <td>
+                <a href="tel:${business.formatted_phone_number}" class="phone">
+                    ${business.formatted_phone_number}
+                </a>
+            </td>
+            <td>
+                <div class="address">${business.formatted_address}</div>
+            </td>
+            <td>
+                <div class="distance">${distanceText}</div>
+            </td>
+            <td>
+                <div class="rating">
+                    ${business.rating ? `
+                        <span class="stars">${'★'.repeat(Math.floor(business.rating))}</span>
+                        <span class="rating-value">${business.rating}/5</span>
+                    ` : '<span class="rating-value">No rating</span>'}
+                </div>
+            </td>
+            <td>
+                <div class="estimated-value">$${business.estimatedValue.toLocaleString()}</div>
+            </td>
+            <td>
+                <div class="actions">
+                    <button class="btn-whatsapp btn-sm" onclick="sendWhatsApp('${business.formatted_phone_number}', '${business.name.replace(/'/g, "\\'")}', '${business.businessType || 'Business'}')">
+                        <i class="fab fa-whatsapp"></i> WhatsApp
+                    </button>
+                </div>
+            </td>
+        `;
+        resultsBody.appendChild(row);
+    });
+}
+
+function updateStats(totalFound, withoutWebsite, potentialRevenue) {
+    document.getElementById('totalFound').textContent = totalFound;
+    document.getElementById('withoutWebsite').textContent = withoutWebsite;
+    document.getElementById('potentialRevenue').textContent = `$${potentialRevenue.toLocaleString()}`;
+}
+
+function resetProgress() {
+    searchProgress = { totalAreas: 0, completedAreas: 0, totalBusinesses: 0, potentialClients: 0 };
+    updateProgress();
+}
+
+function updateProgress() {
+    const progressPercent = searchProgress.totalAreas > 0 
+        ? (searchProgress.completedAreas / searchProgress.totalAreas) * 100 
+        : 0;
+    
+    document.getElementById('btnProgress').style.width = `${progressPercent}%`;
+    document.getElementById('areasScanned').textContent = searchProgress.completedAreas;
+    document.getElementById('businessesFound').textContent = searchProgress.totalBusinesses;
+    document.getElementById('potentialClients').textContent = searchProgress.potentialClients;
+}
+
+function updateLoadingStatus(status, details) {
+    document.getElementById('statusText').textContent = status;
+    document.getElementById('statusDetails').textContent = details;
+}
+
+function showLoading() {
+    const searchBtn = document.getElementById('searchBtn');
+    const btnText = document.getElementById('btnText');
+    const searchStatus = document.getElementById('searchStatus');
+    
+    searchBtn.classList.add('loading');
+    searchBtn.disabled = true;
+    btnText.textContent = 'Searching...';
+    searchStatus.classList.add('active');
+    
+    // Update title during search
+    document.getElementById('results-title').textContent = '🔍 Search in Progress...';
+    document.getElementById('results-subtitle').textContent = 'Scanning area for businesses without websites';
+}
+
+function hideLoading() {
+    const searchBtn = document.getElementById('searchBtn');
+    const btnText = document.getElementById('btnText');
+    const searchStatus = document.getElementById('searchStatus');
+    
+    searchBtn.classList.remove('loading');
+    searchBtn.disabled = false;
+    btnText.textContent = '🔍 Find All Businesses';
+    searchStatus.classList.remove('active');
+}
+
+function clearResults() {
+    currentResults = [];
+    selectedBusinesses = [];
+    document.getElementById('selectAllCheckbox').checked = false;
+    
+    // Update title to show search in progress
+    const resultsTitle = document.getElementById('results-title');
+    const resultsSubtitle = document.getElementById('results-subtitle');
+    
+    if (resultsTitle) {
+        resultsTitle.textContent = '🔍 Search in Progress...';
+    }
+    if (resultsSubtitle) {
+        resultsSubtitle.textContent = 'Scanning area for businesses without websites';
+    }
+    
+    // Clear table content
+    const resultsBody = document.getElementById('results-body');
+    if (resultsBody) {
+        resultsBody.innerHTML = `
+            <tr class="empty-state">
+                <td colspan="8">
+                    <div class="empty-content">
+                        <div class="empty-icon">🔍</div>
+                        <h3>Search in Progress...</h3>
+                        <p>Scanning area for businesses without websites</p>
+                    </div>
+                </td>
+            </tr>
+        `;
+    }
+}
+
+function toggleBusinessSelection(index) {
+    const checkbox = document.querySelector(`input[data-index="${index}"]`);
+    const row = checkbox.closest('tr');
+    const selectAllCheckbox = document.getElementById('selectAllCheckbox');
+    const selectAllBtn = document.querySelector('button[onclick="selectAll()"]');
+    
+    if (checkbox.checked) {
+        selectedBusinesses.push(currentResults[index]);
+        row.classList.add('selected');
+    } else {
+        selectedBusinesses = selectedBusinesses.filter(b => b !== currentResults[index]);
+        row.classList.remove('selected');
+    }
+    
+    // Update select all checkbox and button based on current selection
+    const allCheckboxes = document.querySelectorAll('tbody input[type="checkbox"]');
+    const checkedBoxes = document.querySelectorAll('tbody input[type="checkbox"]:checked');
+    
+    if (checkedBoxes.length === allCheckboxes.length && allCheckboxes.length > 0) {
+        selectAllCheckbox.checked = true;
+        selectAllBtn.textContent = 'Deselect All';
+    } else {
+        selectAllCheckbox.checked = false;
+        selectAllBtn.textContent = 'Select All';
+    }
+    
+    updateBulkActions();
+}
+
+function contactBusiness(phone, name) {
+    const message = `Hi! I noticed ${name} doesn't have a website. I'd love to help you establish an online presence. Can we chat?`;
+    const encodedMessage = encodeURIComponent(message);
+    
+    if (navigator.userAgent.match(/iPhone|iPad|iPod|Android/i)) {
+        window.open(`sms:${phone}?body=${encodedMessage}`);
+    } else {
+        alert(`Call ${phone}\n\nSuggested message:\n${message}`);
+    }
+}
+
+function filterResults() {
+    const filter = document.getElementById('searchFilter').value.toLowerCase();
+    const filteredResults = currentResults.filter(business => 
+        business.name.toLowerCase().includes(filter) ||
+        business.formatted_address.toLowerCase().includes(filter) ||
+        business.businessType.toLowerCase().includes(filter)
+    );
+    displayResults(filteredResults);
+}
+
+function sortResults() {
+    const sortBy = document.getElementById('sortBy').value;
+    const sortedResults = [...currentResults].sort((a, b) => {
+        switch(sortBy) {
+            case 'distance':
+                return a.distance - b.distance;
+            case 'name':
+                return a.name.localeCompare(b.name);
+            case 'rating':
+                return (b.rating || 0) - (a.rating || 0);
+            case 'priority':
+                return b.priority - a.priority;
+            default:
+                return a.distance - b.distance;
+        }
+    });
+    displayResults(sortedResults);
+}
+
+function selectAll() {
+    const selectAllBtn = document.querySelector('button[onclick="selectAll()"]');
+    const selectAllCheckbox = document.getElementById('selectAllCheckbox');
+    
+    if (selectAllCheckbox.checked) {
+        // Deselect all
+        selectAllCheckbox.checked = false;
+        selectAllBtn.textContent = 'Select All';
+    } else {
+        // Select all
+        selectAllCheckbox.checked = true;
+        selectAllBtn.textContent = 'Deselect All';
+    }
+    
+    toggleSelectAll();
+}
+
+function toggleSelectAll() {
+    const selectAllCheckbox = document.getElementById('selectAllCheckbox');
+    const checkboxes = document.querySelectorAll('tbody input[type="checkbox"]');
+    const selectAllBtn = document.querySelector('button[onclick="selectAll()"]');
+    
+    selectedBusinesses = [];
+    checkboxes.forEach((checkbox, index) => {
+        checkbox.checked = selectAllCheckbox.checked;
+        if (selectAllCheckbox.checked && currentResults[index]) {
+            selectedBusinesses.push(currentResults[index]);
+            checkbox.closest('tr').classList.add('selected');
+        } else {
+            checkbox.closest('tr').classList.remove('selected');
+        }
+    });
+    
+    // Update button text based on state
+    if (selectAllCheckbox.checked) {
+        selectAllBtn.textContent = 'Deselect All';
+    } else {
+        selectAllBtn.textContent = 'Select All';
+    }
+    
+    updateBulkActions();
+    
+    // Save state when selection changes
+    if (currentResults.length > 0) {
+        saveSearchState();
+    }
+}
+
+function updateBulkActions() {
+    const selectedInfo = document.getElementById('selectedInfo');
+    const selectedCount = document.getElementById('selectedCount');
+    const contactBtn = document.getElementById('contactSelectedBtn');
+    
+    if (selectedBusinesses.length > 0) {
+        selectedInfo.style.display = 'block';
+        selectedCount.textContent = `${selectedBusinesses.length} selected`;
+        contactBtn.disabled = false;
+        contactBtn.style.opacity = '1';
+    } else {
+        selectedInfo.style.display = 'none';
+        contactBtn.disabled = true;
+        contactBtn.style.opacity = '0.5';
+    }
+}
+
+function bulkExport() {
+    if (selectedBusinesses.length === 0) {
+        alert('No businesses selected');
+        return;
+    }
+    exportToCSV();
+}
+
+function bulkContact() {
+    if (selectedBusinesses.length === 0) {
+        alert('No businesses selected');
+        return;
+    }
+    
+    const phoneNumbers = selectedBusinesses.map(b => b.formatted_phone_number).join(', ');
+    const message = `Selected ${selectedBusinesses.length} high-priority prospects for contact:\n\n${phoneNumbers}\n\nUse the individual contact buttons to reach out to each business.`;
+    alert(message);
+}
+
+function exportToCSV() {
+    const dataToExport = selectedBusinesses.length > 0 ? selectedBusinesses : currentResults;
+    
+    if (dataToExport.length === 0) {
+        alert('No data to export');
+        return;
+    }
+
+    const headers = ['Business Name', 'Phone', 'Address', 'Distance', 'Rating', 'Business Type', 'Estimated Value'];
+    const csvContent = [
+        headers.join(','),
+        ...dataToExport.map(business => [
+            `"${business.name}"`,
+            `"${business.formatted_phone_number}"`,
+            `"${business.formatted_address}"`,
+            business.distance < 1 ? `${Math.round(business.distance * 1000)}m` : `${business.distance.toFixed(1)}km`,
+            business.rating || 'N/A',
+            `"${business.businessType}"`,
+            business.estimatedValue
+        ].join(','))
+    ].join('\n');
+
+    downloadFile(csvContent, 'businesses-without-websites.csv', 'text/csv');
+}
+
+function exportToJSON() {
+    const dataToExport = selectedBusinesses.length > 0 ? selectedBusinesses : currentResults;
+    
+    if (dataToExport.length === 0) {
+        alert('No data to export');
+        return;
+    }
+
+    const jsonContent = JSON.stringify(dataToExport, null, 2);
+    downloadFile(jsonContent, 'businesses-without-websites.json', 'application/json');
+}
+
+function downloadFile(content, filename, contentType) {
+    const blob = new Blob([content], { type: contentType });
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
+}
+
+function showResultsMap() {
+    if (!resultsMap) {
+        resultsMap = new google.maps.Map(document.getElementById('resultsMap'), {
+            zoom: 13,
+            styles: [
+                {
+                    featureType: 'poi',
+                    elementType: 'labels',
+                    stylers: [{ visibility: 'off' }]
+                },
+                {
+                    featureType: 'all',
+                    elementType: 'geometry',
+                    stylers: [{ saturation: -20 }]
+                }
+            ]
+        });
+    }
+    
+    // Use the filter function to show appropriate businesses
+    filterMapView();
+}
+
+// Store current search country code
+let currentCountryCode = '1'; // Default to +1
+
+// Country code mapping for common countries
+const countryToPhoneCode = {
+    'IE': '353', // Ireland
+    'GB': '44',  // United Kingdom
+    'US': '1',   // United States
+    'CA': '1',   // Canada
+    'AU': '61',  // Australia
+    'DE': '49',  // Germany
+    'FR': '33',  // France
+    'ES': '34',  // Spain
+    'IT': '39',  // Italy
+    'NL': '31',  // Netherlands
+    'BE': '32',  // Belgium
+    'CH': '41',  // Switzerland
+    'AT': '43',  // Austria
+    'SE': '46',  // Sweden
+    'NO': '47',  // Norway
+    'DK': '45',  // Denmark
+    'FI': '358', // Finland
+    'PL': '48',  // Poland
+    'CZ': '420', // Czech Republic
+    'PT': '351', // Portugal
+    'IN': '91',  // India
+    'CN': '86',  // China
+    'JP': '81',  // Japan
+    'KR': '82',  // South Korea
+    'BR': '55',  // Brazil
+    'MX': '52',  // Mexico
+    'AR': '54',  // Argentina
+    'ZA': '27',  // South Africa
+    'EG': '20',  // Egypt
+    'NG': '234', // Nigeria
+    'KE': '254', // Kenya
+    'AE': '971', // UAE
+    'SA': '966', // Saudi Arabia
+    'TR': '90',  // Turkey
+    'RU': '7',   // Russia
+    'UA': '380', // Ukraine
+    'GR': '30',  // Greece
+    'BG': '359', // Bulgaria
+    'RO': '40',  // Romania
+    'HU': '36',  // Hungary
+    'HR': '385', // Croatia
+    'SI': '386', // Slovenia
+    'SK': '421', // Slovakia
+    'LT': '370', // Lithuania
+    'LV': '371', // Latvia
+    'EE': '372'  // Estonia
+};
+
+async function getCountryFromCoordinates(lat, lng) {
+    try {
+        const geocoder = new google.maps.Geocoder();
+        const response = await new Promise((resolve, reject) => {
+            geocoder.geocode({ location: { lat, lng } }, (results, status) => {
+                if (status === 'OK') resolve(results);
+                else reject(status);
+            });
+        });
+
+        // Find country component
+        for (const result of response) {
+            for (const component of result.address_components) {
+                if (component.types.includes('country')) {
+                    const countryCode = component.short_name;
+                    const phoneCode = countryToPhoneCode[countryCode] || '1';
+                    console.log(`Country: ${component.long_name} (${countryCode}), Phone code: +${phoneCode}`);
+                    return phoneCode;
+                }
+            }
+        }
+    } catch (error) {
+        console.log('Geocoding error:', error);
+    }
+    
+    return '1'; // Default fallback
+}
+
+function sendWhatsApp(phoneNumber, businessName, businessType) {
+    // Use the stored country code from the search location
+    const countryCode = currentCountryCode;
+    
+    // Clean and format phone number properly
+    let cleanPhone = phoneNumber.replace(/[\s\-\(\)\+]/g, '');
+    
+    // Add country code if not present
+    if (!cleanPhone.startsWith(countryCode) && cleanPhone.startsWith('0')) {
+        cleanPhone = countryCode + cleanPhone.substring(1);
+    } else if (!cleanPhone.startsWith(countryCode)) {
+        cleanPhone = countryCode + cleanPhone;
+    }
+    
+    // Create message
+    const message = `Hi ${businessName}! 👋
+
+I noticed you don't have a website yet. I help ${businessType.toLowerCase()} businesses get online and attract more customers.
+
+Would you be interested in a quick chat about how a website could help grow your business?
+
+Best regards! 🚀`;
+
+    // Encode message for URL
+    const encodedMessage = encodeURIComponent(message);
+    
+    // Create WhatsApp URL
+    const whatsappUrl = `https://wa.me/${cleanPhone}?text=${encodedMessage}`;
+    
+    console.log('Using country code:', countryCode);
+    console.log('WhatsApp URL:', whatsappUrl);
+    
+    // Open WhatsApp
+    window.open(whatsappUrl, '_blank');
+}
+
+window.initMap = initMap;
