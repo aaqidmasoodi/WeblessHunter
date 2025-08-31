@@ -23,12 +23,14 @@ body {
     border-right: 1px solid #e4e4e7;
     padding: 24px;
     flex-shrink: 0;
-    position: sticky;
+    position: fixed; /* Fixed positioning for desktop */
     top: 0;
+    left: 0;
     height: 100vh;
-    overflow: hidden;
+    overflow-y: auto;
     display: flex;
     flex-direction: column;
+    padding-bottom: 60px; /* Space for footer */
 }
 
 header {
@@ -99,6 +101,7 @@ input[type="range"] {
     background: #e4e4e7;
     outline: none;
     -webkit-appearance: none;
+    appearance: none;
 }
 
 input[type="range"]::-webkit-slider-thumb {
@@ -1496,16 +1499,38 @@ tr.selected {
         order: 2; /* Second - at the bottom */
         width: 100%;
         height: auto;
-        position: static;
+        position: relative;
         border-right: none;
         border-top: 1px solid #e4e4e7;
         padding: 16px;
+        min-height: auto; /* Remove min-height on mobile */
+        padding-bottom: 0; /* Remove bottom padding on mobile */
     }
     
-    /* Hide app title and tagline on mobile */
+    /* Mobile footer - use normal flow, not absolute */
+    .sidebar-footer {
+        display: block;
+        position: static; /* Normal flow on mobile */
+        margin-top: 16px;
+        margin-left: -16px;
+        margin-right: -16px;
+        width: auto;
+    }
+    
+    /* Hide app title, tagline, and subtitle on mobile (but not footer) */
     .sidebar h1,
     .sidebar .tagline {
         display: none;
+    }
+    
+    /* Hide first paragraph but not if it's in footer */
+    .sidebar > p:first-of-type:not(.sidebar-footer p) {
+        display: none;
+    }
+    
+    /* Ensure footer paragraph is always visible */
+    .sidebar-footer p {
+        display: block !important;
     }
     
     /* Add simple instruction for mobile */
@@ -1606,7 +1631,7 @@ tr.selected {
         font-size: 16px;
         font-weight: 600;
     }
-}
+
 
 /* Ensure desktop layout isn't affected */
 @media (min-width: 769px) {
@@ -1694,5 +1719,62 @@ tr.selected {
         font-size: 14px;
         text-align: center;
     }
-}
+    
     /* Hide radio button controls on mobile */
+    #mapControls {
+        display: none !important;
+    }
+    
+    /* Hide location instruction text on mobile */
+    .content-area p {
+        display: none;
+    }
+}
+
+/* Sidebar Footer */
+.sidebar-footer {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    padding: 12px 0;
+    background: #000000;
+    z-index: 100;
+}
+
+
+.sidebar-footer p {
+    margin: 0;
+    font-size: 11px;
+    color: #ffffff;
+    text-align: center;
+    line-height: 1.4;
+}
+
+.sidebar-footer a {
+    color: #ffffff;
+    text-decoration: none;
+    font-weight: bold;
+}
+
+.sidebar-footer a:hover {
+    text-decoration: underline;
+}
+
+
+/* Desktop sidebar - ensure it's visible and fixed */
+@media (min-width: 769px) {
+    .sidebar {
+        position: fixed !important;
+        top: 0 !important;
+        left: 0 !important;
+        width: 400px !important;
+        height: 100vh !important;
+        display: flex !important;
+        order: initial !important;
+    }
+    
+    .main-content {
+        margin-left: 400px; /* Account for fixed sidebar */
+    }
+}
