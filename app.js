@@ -10,9 +10,11 @@ let searchProgress = {
 };
 let searchMap, resultsMap;
 let searchMarkers = [];
-let currentView = 'table';
+let currentView = 'map';
 let searchCircles = [];
 let businessMarkers = new Map(); // Track markers by place_id
+let locationMarker = null; // Track the location selection marker
+let selectedLocation = null; // Store selected coordinates
 
 function initMap() {
     map = new google.maps.Map(document.createElement('div'));
@@ -21,6 +23,12 @@ function initMap() {
     // Load saved state after map is initialized
     setTimeout(() => {
         loadSearchState();
+        
+        // If no saved state, get current location and show map
+        if (!allFoundBusinesses.length) {
+            useCurrentLocation();
+            switchView('map'); // Show map view by default
+        }
     }, 100);
 }
 
@@ -31,13 +39,21 @@ function switchView(view) {
     document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
     document.getElementById(view + 'Tab').classList.add('active');
     
+    // Show/hide controls based on view
+    const tableControls = document.getElementById('tableControls');
+    const mapControls = document.getElementById('mapControls');
+    
     // Show/hide views
     if (view === 'table') {
         document.getElementById('tableView').style.display = 'block';
         document.getElementById('mapView').style.display = 'none';
+        tableControls.style.display = 'flex';
+        mapControls.style.display = 'none';
     } else {
         document.getElementById('tableView').style.display = 'none';
         document.getElementById('mapView').style.display = 'block';
+        tableControls.style.display = 'none';
+        mapControls.style.display = 'flex';
         
         // Initialize map view
         if (allFoundBusinesses.length > 0) {
@@ -61,7 +77,7 @@ function initializeMapView() {
     if (!resultsMap) {
         resultsMap = new google.maps.Map(document.getElementById('resultsMap'), {
             zoom: 13,
-            center: { lat: 53.3498, lng: -6.2603 }, // Default to Dublin
+            center: selectedLocation || { lat: 53.3498, lng: -6.2603 },
             styles: [
                 {
                     featureType: 'poi',
@@ -75,6 +91,16 @@ function initializeMapView() {
                 }
             ]
         });
+        
+        // Add click listener for location selection
+        resultsMap.addListener('click', (event) => {
+            setLocationFromClick(event.latLng);
+        });
+    }
+    
+    // If we have a selected location, show the pin
+    if (selectedLocation && !locationMarker) {
+        showLocationPin();
     }
     
     // If we have search results, show them
@@ -283,6 +309,11 @@ function restoreCompleteMap(searchCenter, savedCircles) {
                 }
             ]
         });
+        
+        // Add click listener for location selection
+        resultsMap.addListener('click', (event) => {
+            setLocationFromClick(event.latLng);
+        });
     }
     
     // Clear existing markers and circles
@@ -444,6 +475,11 @@ function clearSearchState() {
     localStorage.removeItem('businessFinderState');
     allFoundBusinesses = []; // Clear the businesses array too
     
+    // Reset statistics display
+    document.getElementById('totalFound').textContent = '0';
+    document.getElementById('withoutWebsite').textContent = '0';
+    document.getElementById('potentialRevenue').textContent = '$0';
+    
     // Clear any existing search circles
     searchCircles.forEach(circle => circle.setMap(null));
     searchCircles = [];
@@ -524,6 +560,12 @@ function showSearchCircle(centerLocation, radius) {
     
     // Animate to appropriate zoom
     resultsMap.setZoom(zoom);
+    
+    // Ensure click listener is always active
+    google.maps.event.clearListeners(resultsMap, 'click');
+    resultsMap.addListener('click', (event) => {
+        setLocationFromClick(event.latLng);
+    });
     
     // Create permanent search circle (stays visible)
     const permanentCircle = new google.maps.Circle({
@@ -883,24 +925,124 @@ async function processBusinessesWithMap(places, centerLocation) {
     }
 }
 
+function setLocationFromClick(latLng) {
+    const lat = latLng.lat();
+    const lng = latLng.lng();
+    
+    // Store selected coordinates
+    selectedLocation = { lat, lng };
+    
+    // Update hidden input with coordinates
+    document.getElementById('location').value = `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
+    
+    // Remove previous marker if exists
+    if (locationMarker) {
+        locationMarker.setMap(null);
+    }
+    
+    // Add new marker at clicked location first
+    locationMarker = new google.maps.Marker({
+        position: { lat, lng },
+        map: resultsMap,
+        title: 'Selected Location - Click Search to hunt here!',
+        icon: {
+            url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(`
+                <svg width="30" height="30" viewBox="0 0 30 30" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <circle cx="15" cy="15" r="12" fill="#dc2626" stroke="white" stroke-width="3"/>
+                    <circle cx="15" cy="15" r="5" fill="white"/>
+                </svg>
+            `),
+            scaledSize: new google.maps.Size(30, 30)
+        }
+    });
+    
+    // Then smoothly pan to the pin location after a brief delay
+    setTimeout(() => {
+        resultsMap.panTo({ lat, lng });
+    }, 300);
+    
+    console.log('Location selected:', lat.toFixed(6), lng.toFixed(6));
+}
+
+function showLocationPin() {
+    if (selectedLocation && resultsMap) {
+        locationMarker = new google.maps.Marker({
+            position: selectedLocation,
+            map: resultsMap,
+            title: 'Selected Location - Click Search to hunt here!',
+            icon: {
+                url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(`
+                    <svg width="30" height="30" viewBox="0 0 30 30" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <circle cx="15" cy="15" r="12" fill="#3b82f6" stroke="white" stroke-width="3"/>
+                        <circle cx="15" cy="15" r="5" fill="white"/>
+                    </svg>
+                `),
+                scaledSize: new google.maps.Size(30, 30)
+            }
+        });
+    }
+}
+
 function useCurrentLocation() {
     if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(position => {
             const lat = position.coords.latitude;
             const lng = position.coords.longitude;
-            document.getElementById('location').value = `${lat}, ${lng}`;
+            
+            // Store selected coordinates
+            selectedLocation = { lat, lng };
+            
+            // Update hidden input with coordinates
+            document.getElementById('location').value = `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
+            
+            // Switch to map view if not already
+            if (currentView !== 'map') {
+                switchView('map');
+            }
+            
+            // Center map on current position
+            if (resultsMap) {
+                resultsMap.setCenter({ lat, lng });
+                resultsMap.setZoom(15);
+            }
+            
+            // Remove previous marker if exists
+            if (locationMarker) {
+                locationMarker.setMap(null);
+            }
+            
+            // Add marker at current location
+            if (resultsMap) {
+                locationMarker = new google.maps.Marker({
+                    position: { lat, lng },
+                    map: resultsMap,
+                    title: 'Current Location - Click Search to hunt here!',
+                    icon: {
+                        url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(`
+                            <svg width="30" height="30" viewBox="0 0 30 30" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <circle cx="15" cy="15" r="12" fill="#3b82f6" stroke="white" stroke-width="3"/>
+                                <circle cx="15" cy="15" r="5" fill="white"/>
+                            </svg>
+                        `),
+                        scaledSize: new google.maps.Size(30, 30)
+                    }
+                });
+            }
+            
+            console.log('Current location set:', lat.toFixed(6), lng.toFixed(6));
         }, error => {
-            alert('Unable to get your location. Please enter manually.');
+            alert('Unable to get your location. Please click on the map to select a location.');
         });
     } else {
-        alert('Geolocation not supported by this browser');
+        alert('Geolocation not supported by this browser. Please click on the map to select a location.');
     }
 }
 
 async function searchBusinesses() {
     const locationInput = document.getElementById('location').value;
-    if (!locationInput) {
-        alert('Please enter a location');
+    
+    if (!locationInput && !selectedLocation) {
+        alert('Please select a location by clicking on the map or using current location');
         return;
     }
 
@@ -912,7 +1054,23 @@ async function searchBusinesses() {
     resetProgress();
 
     try {
-        const location = await getCoordinates(locationInput);
+        let location;
+        
+        // Use selectedLocation if available, otherwise parse input
+        if (selectedLocation) {
+            location = selectedLocation;
+        } else {
+            // Try to parse coordinates from input
+            const coords = locationInput.split(',').map(coord => parseFloat(coord.trim()));
+            if (coords.length === 2 && !isNaN(coords[0]) && !isNaN(coords[1])) {
+                location = { lat: coords[0], lng: coords[1] };
+            } else {
+                // Fallback to geocoding
+                location = await getCoordinates(locationInput);
+            }
+        }
+        
+        console.log('Searching at location:', location);
         await findBusinessesWithoutWebsites(location);
     } catch (error) {
         alert('Error finding location: ' + error.message);
@@ -1242,6 +1400,9 @@ function displayResults(businesses) {
     const resultsTitle = document.getElementById('results-title');
     const resultsSubtitle = document.getElementById('results-subtitle');
     
+    // Remove existing click outside listener
+    document.removeEventListener('click', handleClickOutside);
+    
     if (businesses.length === 0) {
         resultsTitle.textContent = 'No Results Found';
         resultsSubtitle.textContent = 'All businesses in this area already have websites';
@@ -1265,8 +1426,12 @@ function displayResults(businesses) {
     resultsBody.innerHTML = '';
     
     businesses.forEach((business, index) => {
-        const row = document.createElement('tr');
         const distanceText = business.distance < 1 ? `${Math.round(business.distance * 1000)}m` : `${business.distance.toFixed(1)}km`;
+        
+        // Main business row
+        const row = document.createElement('tr');
+        row.className = 'business-row';
+        row.setAttribute('data-index', index);
         
         row.innerHTML = `
             <td>
@@ -1300,14 +1465,112 @@ function displayResults(businesses) {
             </td>
             <td>
                 <div class="actions">
-                    <button class="btn-whatsapp btn-sm" onclick="sendWhatsApp('${business.formatted_phone_number}', '${business.name.replace(/'/g, "\\'")}', '${business.businessType || 'Business'}')">
+                    <button class="btn-whatsapp btn-sm" onclick="event.stopPropagation(); sendWhatsApp('${business.formatted_phone_number}', '${business.name.replace(/'/g, "\\'")}', '${business.businessType || 'Business'}')">
                         <i class="fab fa-whatsapp"></i> WhatsApp
                     </button>
                 </div>
             </td>
         `;
+        
+        // Add click listener to row
+        row.addEventListener('click', (event) => {
+            // Don't trigger if clicking on checkbox or button
+            if (event.target.type === 'checkbox' || event.target.closest('button') || event.target.closest('a')) {
+                return;
+            }
+            toggleBusinessCard(index);
+        });
+        
         resultsBody.appendChild(row);
+        
+        // Expandable card row
+        const cardRow = document.createElement('tr');
+        cardRow.className = 'business-card';
+        cardRow.id = `card-${index}`;
+        cardRow.style.display = 'none';
+        
+        cardRow.innerHTML = `
+            <td colspan="8">
+                <div class="card-content">
+                    <div class="card-header">
+                        <h3>${business.name}</h3>
+                        <span class="card-close" onclick="closeAllCards()">×</span>
+                    </div>
+                    <div class="card-body">
+                        <div class="card-section">
+                            <strong>Business Type:</strong> ${business.businessType || 'Not specified'}
+                        </div>
+                        <div class="card-section">
+                            <strong>Address:</strong> ${business.formatted_address}
+                        </div>
+                        <div class="card-section">
+                            <strong>Distance:</strong> ${distanceText}
+                        </div>
+                        <div class="card-section">
+                            <strong>Phone:</strong> <a href="tel:${business.formatted_phone_number}">${business.formatted_phone_number}</a>
+                        </div>
+                        <div class="card-section">
+                            <strong>Rating:</strong> ${business.rating ? '⭐ ' + business.rating + '/5' : 'No rating available'}
+                        </div>
+                        <div class="card-section">
+                            <strong>Estimated Value:</strong> $${business.estimatedValue.toLocaleString()}
+                        </div>
+                    </div>
+                    <div class="card-actions">
+                        <button class="btn-whatsapp" onclick="sendWhatsApp('${business.formatted_phone_number}', '${business.name.replace(/'/g, "\\'")}', '${business.businessType || 'Business'}')">
+                            <i class="fab fa-whatsapp"></i> Contact via WhatsApp
+                        </button>
+                    </div>
+                </div>
+            </td>
+        `;
+        resultsBody.appendChild(cardRow);
     });
+    
+    // Add single click outside listener
+    setTimeout(() => {
+        document.addEventListener('click', handleClickOutside);
+    }, 100);
+}
+
+let currentOpenCard = null;
+
+function toggleBusinessCard(index) {
+    const card = document.getElementById(`card-${index}`);
+    
+    // If this card is already open, close it
+    if (currentOpenCard === index) {
+        card.style.display = 'none';
+        currentOpenCard = null;
+        return;
+    }
+    
+    // Close any currently open card
+    closeAllCards();
+    
+    // Open the clicked card
+    card.style.display = 'table-row';
+    currentOpenCard = index;
+}
+
+function closeAllCards() {
+    if (currentOpenCard !== null) {
+        const openCard = document.getElementById(`card-${currentOpenCard}`);
+        if (openCard) {
+            openCard.style.display = 'none';
+        }
+        currentOpenCard = null;
+    }
+}
+
+function handleClickOutside(event) {
+    // Check if click is inside the results table
+    const resultsTable = event.target.closest('#results-table');
+    
+    // If click is outside the results table, close all cards
+    if (!resultsTable) {
+        closeAllCards();
+    }
 }
 
 function updateStats(totalFound, withoutWebsite, potentialRevenue) {

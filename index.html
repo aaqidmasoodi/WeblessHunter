@@ -17,9 +17,9 @@
             </header>
 
             <div class="search-section">
-                <div class="input-group">
+                <div class="input-group" style="display: none;">
                     <label for="location">Location</label>
-                    <input type="text" id="location" placeholder="Enter location or coordinates">
+                    <input type="text" id="location" placeholder="Click on map or use current location" readonly>
                     <button onclick="useCurrentLocation()" class="btn-secondary">📍 Current Location</button>
                 </div>
                 
@@ -50,6 +50,10 @@
                         <option value="regional">🌍 Regional (0.1-50km)</option>
                     </select>
                 </div>
+                
+                <button onclick="useCurrentLocation()" class="btn-secondary" style="width: 100%; margin-bottom: 12px;">
+                    📍 Use Current Location
+                </button>
                 
                 <button onclick="searchBusinesses()" class="btn-primary" id="searchBtn">
                     <div class="btn-content">
@@ -114,21 +118,42 @@
                     <p id="results-subtitle">Enter a location to find businesses without websites</p>
                 </div>
                 <div class="toolbar-actions">
-                    <input type="text" id="searchFilter" placeholder="Filter results..." oninput="filterResults()">
-                    <select id="sortBy" onchange="sortResults()">
-                        <option value="distance">Sort by Distance</option>
-                        <option value="name">Sort by Name</option>
-                        <option value="rating">Sort by Rating</option>
-                        <option value="priority">Sort by Priority</option>
-                    </select>
-                    <button onclick="selectAll()" class="btn-secondary">Select All</button>
+                    <!-- Table View Controls -->
+                    <div id="tableControls">
+                        <input type="text" id="searchFilter" placeholder="Filter results..." oninput="filterResults()">
+                        <select id="sortBy" onchange="sortResults()">
+                            <option value="distance">Sort by Distance</option>
+                            <option value="name">Sort by Name</option>
+                            <option value="rating">Sort by Rating</option>
+                            <option value="priority">Sort by Priority</option>
+                        </select>
+                        <button onclick="selectAll()" class="btn-secondary">Select All</button>
+                    </div>
+                    
+                    <!-- Map View Controls -->
+                    <div id="mapControls" style="display: none;">
+                        <div class="map-filter-controls">
+                            <label class="radio-label">
+                                <input type="radio" name="mapFilter" value="all" checked onchange="filterMapView()">
+                                <span>🏢 All Businesses</span>
+                            </label>
+                            <label class="radio-label">
+                                <input type="radio" name="mapFilter" value="potential" onchange="filterMapView()">
+                                <span>💰 Potential Clients Only</span>
+                            </label>
+                            <label class="radio-label">
+                                <input type="radio" name="mapFilter" value="withWebsites" onchange="filterMapView()">
+                                <span>🌐 Businesses With Websites Only</span>
+                            </label>
+                        </div>
+                    </div>
                 </div>
             </div>
 
             <!-- View Tabs -->
             <div class="view-tabs">
-                <button class="tab-btn active" onclick="switchView('table')" id="tableTab">📊 Table View</button>
-                <button class="tab-btn" onclick="switchView('map')" id="mapTab">🗺️ Map View</button>
+                <button class="tab-btn active" onclick="switchView('map')" id="mapTab">🗺️ Map View</button>
+                <button class="tab-btn" onclick="switchView('table')" id="tableTab">📊 Table View</button>
             </div>
 
             <!-- Table View -->
@@ -162,23 +187,7 @@
 
             <!-- Map View -->
             <div class="map-container" id="mapView" style="display: none;">
-                <div class="map-controls">
-                    <div class="map-filter-controls">
-                        <label class="radio-label">
-                            <input type="radio" name="mapFilter" value="all" checked onchange="filterMapView()">
-                            <span>🏢 All Businesses</span>
-                        </label>
-                        <label class="radio-label">
-                            <input type="radio" name="mapFilter" value="potential" onchange="filterMapView()">
-                            <span>💰 Potential Clients Only</span>
-                        </label>
-                        <label class="radio-label">
-                            <input type="radio" name="mapFilter" value="withWebsites" onchange="filterMapView()">
-                            <span>🌐 Businesses With Websites Only</span>
-                        </label>
-                    </div>
-                </div>
-                <div id="resultsMap" style="width: 100%; height: calc(100% - 60px); border-radius: 8px;"></div>
+                <div id="resultsMap" style="width: 100%; height: 100%; border-radius: 8px;"></div>
             </div>
         </div>
         </div>
