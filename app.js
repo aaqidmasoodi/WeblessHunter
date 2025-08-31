@@ -1581,6 +1581,9 @@ async function searchBusinesses() {
     showLoading();
     clearResults();
     resetProgress();
+    
+    // Show map loading overlay
+    showMapLoadingOverlay('Initializing search...');
 
     try {
         let location;
@@ -2154,6 +2157,9 @@ function updateProgress() {
 function updateLoadingStatus(status, details) {
     document.getElementById('statusText').textContent = status;
     document.getElementById('statusDetails').textContent = details;
+    
+    // Also update map loading overlay
+    updateMapLoadingStatus(status);
 }
 
 function showLoading() {
@@ -2180,6 +2186,9 @@ function hideLoading() {
     searchBtn.disabled = false;
     btnText.textContent = '🔍 Find All Businesses';
     searchStatus.classList.remove('active');
+    
+    // Hide map loading overlay
+    hideMapLoadingOverlay();
 }
 
 function clearResults() {
@@ -2702,3 +2711,29 @@ ${userName}`;
 }
 
 window.initMap = initMap;
+// Show map loading overlay
+function showMapLoadingOverlay(status = 'Initializing search') {
+    const overlay = document.getElementById('mapLoadingOverlay');
+    const statusText = document.getElementById('mapLoadingStatus');
+    
+    if (overlay && statusText) {
+        statusText.textContent = status;
+        overlay.classList.add('active');
+    }
+}
+
+// Hide map loading overlay
+function hideMapLoadingOverlay() {
+    const overlay = document.getElementById('mapLoadingOverlay');
+    if (overlay) {
+        overlay.classList.remove('active');
+    }
+}
+
+// Update map loading status
+function updateMapLoadingStatus(status) {
+    const statusText = document.getElementById('mapLoadingStatus');
+    if (statusText) {
+        statusText.textContent = status;
+    }
+}

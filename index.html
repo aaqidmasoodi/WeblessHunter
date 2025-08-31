@@ -365,6 +365,22 @@
             <!-- Map View -->
             <div class="map-container" id="mapView" style="display: none;">
                 <div id="resultsMap" style="width: 100%; height: 100%; border-radius: 8px;"></div>
+                
+                <!-- Map Loading Overlay -->
+                <div class="map-loading-overlay" id="mapLoadingOverlay">
+                    <div class="map-loading-content">
+                        <div class="map-loading-lines">
+                            <div class="map-loading-line"></div>
+                            <div class="map-loading-line"></div>
+                            <div class="map-loading-line"></div>
+                            <div class="map-loading-line"></div>
+                        </div>
+                        <div class="map-loading-info">
+                            <div class="map-loading-text">Scanning Area...</div>
+                            <div class="map-loading-status" id="mapLoadingStatus">Initializing search</div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
         </div>
