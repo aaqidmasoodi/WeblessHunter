@@ -15,21 +15,7 @@
             <div class="step-content">
                 <div class="welcome-icon">🎯</div>
                 <h1>Welcome to WeblessHunter</h1>
-                <p class="welcome-text">Discover businesses without websites and turn them into clients using advanced radar search technology.</p>
-                <div class="features-list">
-                    <div class="feature-item">
-                        <span class="feature-icon">🗺️</span>
-                        <span>Interactive map-based business discovery</span>
-                    </div>
-                    <div class="feature-item">
-                        <span class="feature-icon">💰</span>
-                        <span>Identify potential clients without websites</span>
-                    </div>
-                    <div class="feature-item">
-                        <span class="feature-icon">📱</span>
-                        <span>Direct WhatsApp contact integration</span>
-                    </div>
-                </div>
+                <p class="welcome-text">The professional lead generation platform that identifies businesses without digital presence and converts them into high-value clients through strategic outreach.</p>
                 <button onclick="nextStep()" class="btn-primary btn-large">Get Started</button>
             </div>
         </div>
@@ -73,21 +59,67 @@
                 
                 <div class="form-group">
                     <label for="userCountry">Country</label>
-                    <select id="userCountry">
-                        <option value="">Select your country</option>
-                        <option value="IE">Ireland</option>
-                        <option value="GB">United Kingdom</option>
-                        <option value="US">United States</option>
-                        <option value="CA">Canada</option>
-                        <option value="AU">Australia</option>
-                        <option value="DE">Germany</option>
-                        <option value="FR">France</option>
-                        <option value="ES">Spain</option>
-                        <option value="IT">Italy</option>
-                        <option value="NL">Netherlands</option>
-                        <option value="IN">India</option>
-                        <option value="other">Other</option>
-                    </select>
+                    <input type="text" id="userCountry" list="countryList" placeholder="Type to search countries...">
+                    <datalist id="countryList">
+                        <option value="Ireland">Ireland</option>
+                        <option value="United Kingdom">United Kingdom</option>
+                        <option value="United States">United States</option>
+                        <option value="Canada">Canada</option>
+                        <option value="Australia">Australia</option>
+                        <option value="Germany">Germany</option>
+                        <option value="France">France</option>
+                        <option value="Spain">Spain</option>
+                        <option value="Italy">Italy</option>
+                        <option value="Netherlands">Netherlands</option>
+                        <option value="India">India</option>
+                        <option value="Afghanistan">Afghanistan</option>
+                        <option value="Albania">Albania</option>
+                        <option value="Algeria">Algeria</option>
+                        <option value="Argentina">Argentina</option>
+                        <option value="Austria">Austria</option>
+                        <option value="Bangladesh">Bangladesh</option>
+                        <option value="Belgium">Belgium</option>
+                        <option value="Brazil">Brazil</option>
+                        <option value="Bulgaria">Bulgaria</option>
+                        <option value="China">China</option>
+                        <option value="Croatia">Croatia</option>
+                        <option value="Czech Republic">Czech Republic</option>
+                        <option value="Denmark">Denmark</option>
+                        <option value="Egypt">Egypt</option>
+                        <option value="Finland">Finland</option>
+                        <option value="Greece">Greece</option>
+                        <option value="Hungary">Hungary</option>
+                        <option value="Indonesia">Indonesia</option>
+                        <option value="Iran">Iran</option>
+                        <option value="Iraq">Iraq</option>
+                        <option value="Israel">Israel</option>
+                        <option value="Japan">Japan</option>
+                        <option value="Jordan">Jordan</option>
+                        <option value="Kenya">Kenya</option>
+                        <option value="Malaysia">Malaysia</option>
+                        <option value="Mexico">Mexico</option>
+                        <option value="Morocco">Morocco</option>
+                        <option value="New Zealand">New Zealand</option>
+                        <option value="Nigeria">Nigeria</option>
+                        <option value="Norway">Norway</option>
+                        <option value="Pakistan">Pakistan</option>
+                        <option value="Philippines">Philippines</option>
+                        <option value="Poland">Poland</option>
+                        <option value="Portugal">Portugal</option>
+                        <option value="Romania">Romania</option>
+                        <option value="Russia">Russia</option>
+                        <option value="Saudi Arabia">Saudi Arabia</option>
+                        <option value="Singapore">Singapore</option>
+                        <option value="South Africa">South Africa</option>
+                        <option value="South Korea">South Korea</option>
+                        <option value="Sweden">Sweden</option>
+                        <option value="Switzerland">Switzerland</option>
+                        <option value="Thailand">Thailand</option>
+                        <option value="Turkey">Turkey</option>
+                        <option value="Ukraine">Ukraine</option>
+                        <option value="United Arab Emirates">United Arab Emirates</option>
+                        <option value="Vietnam">Vietnam</option>
+                    </datalist>
                 </div>
                 
                 <div class="location-access">
@@ -218,7 +250,7 @@
                     </div>
                 </div>
 
-                <div class="stats-panel">
+                <div class="stats-panel" id="statsPanel" style="display: none;">
                     <h3>Search Statistics</h3>
                     <div class="stat-item">
                         <span class="stat-label">Total Found:</span>
@@ -238,7 +270,7 @@
                     <h3>Export Data</h3>
                     <button onclick="exportToCSV()" class="btn-secondary">📊 Export CSV</button>
                     <button onclick="exportToJSON()" class="btn-secondary">📄 Export JSON</button>
-                    <button onclick="bulkContact()" class="btn-secondary" id="contactSelectedBtn" disabled>📞 Contact Selected</button>
+                    <button onclick="exportSelected()" class="btn-secondary" id="exportSelectedBtn" disabled>📋 Export Selected</button>
                     <div class="selected-info" id="selectedInfo" style="display: none;">
                         <span id="selectedCount">0 selected</span>
                     </div>
@@ -260,7 +292,7 @@
                 </div>
                 <div class="toolbar-actions">
                     <!-- Table View Controls -->
-                    <div id="tableControls">
+                    <div id="tableControls" style="display: none;">
                         <input type="text" id="searchFilter" placeholder="Filter results..." oninput="filterResults()">
                         <select id="sortBy" onchange="sortResults()">
                             <option value="distance">Sort by Distance</option>
@@ -272,7 +304,7 @@
                     </div>
                     
                     <!-- Map View Controls -->
-                    <div id="mapControls" style="display: none;">
+                    <div id="mapControls">
                         <div class="map-filter-controls">
                             <label class="radio-label">
                                 <input type="radio" name="mapFilter" value="all" checked onchange="filterMapView()">

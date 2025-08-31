@@ -24,6 +24,9 @@ function showOnboarding() {
 function showMainApp() {
     document.getElementById('onboardingContainer').style.display = 'none';
     document.getElementById('mainApp').style.display = 'block';
+    
+    // Sync controls with current view state after showing main app
+    setTimeout(syncControlsWithCurrentView, 200);
 }
 
 function nextStep() {
@@ -85,7 +88,7 @@ function requestLocationAccess() {
                     lng: position.coords.longitude
                 };
                 document.getElementById('locationStatus').textContent = '✅ Location access granted';
-                document.getElementById('locationStatus').style.color = '#16a34a';
+                document.getElementById('locationStatus').style.color = '#000000';
             },
             (error) => {
                 document.getElementById('locationStatus').textContent = '❌ Location access denied';
@@ -165,8 +168,50 @@ function factoryReset() {
     }
 }
 
+// Handle tab visibility changes to prevent animation issues
+document.addEventListener('visibilitychange', () => {
+    if (document.hidden) {
+        console.log('Tab hidden - pausing animations');
+    } else {
+        console.log('Tab visible - resuming animations');
+    }
+});
+
+function syncControlsWithCurrentView() {
+    // Detect which view is currently active
+    const tableView = document.getElementById('tableView');
+    const mapView = document.getElementById('mapView');
+    const tableControls = document.getElementById('tableControls');
+    const mapControls = document.getElementById('mapControls');
+    
+    // Check which view is visible
+    const isTableViewVisible = tableView.style.display !== 'none';
+    const isMapViewVisible = mapView.style.display !== 'none';
+    
+    // Update controls based on visible view
+    if (isTableViewVisible) {
+        currentView = 'table';
+        tableControls.style.display = 'flex';
+        mapControls.style.display = 'none';
+        // Update tab buttons
+        document.getElementById('tableTab').classList.add('active');
+        document.getElementById('mapTab').classList.remove('active');
+    } else {
+        currentView = 'map';
+        tableControls.style.display = 'none';
+        mapControls.style.display = 'flex';
+        // Update tab buttons
+        document.getElementById('mapTab').classList.add('active');
+        document.getElementById('tableTab').classList.remove('active');
+    }
+}
+
 // Initialize onboarding check when page loads
-document.addEventListener('DOMContentLoaded', checkOnboardingStatus);
+document.addEventListener('DOMContentLoaded', () => {
+    checkOnboardingStatus();
+    // Sync controls after a short delay to ensure DOM is ready
+    setTimeout(syncControlsWithCurrentView, 100);
+});
 
 let map, service;
 let currentResults = [];
@@ -250,16 +295,79 @@ function initializeMapView() {
             center: selectedLocation || { lat: 53.3498, lng: -6.2603 },
             styles: [
                 {
-                    featureType: 'poi',
-                    elementType: 'labels',
-                    stylers: [{ visibility: 'off' }]
+                    "elementType": "geometry",
+                    "stylers": [{"color": "#f5f5f5"}]
                 },
                 {
-                    featureType: 'all',
-                    elementType: 'geometry',
-                    stylers: [{ saturation: -20 }]
+                    "elementType": "labels.icon",
+                    "stylers": [{"visibility": "off"}]
+                },
+                {
+                    "elementType": "labels.text.fill",
+                    "stylers": [{"color": "#616161"}]
+                },
+                {
+                    "elementType": "labels.text.stroke",
+                    "stylers": [{"color": "#f5f5f5"}]
+                },
+                {
+                    "featureType": "administrative",
+                    "elementType": "geometry",
+                    "stylers": [{"color": "#fefefe"}]
+                },
+                {
+                    "featureType": "administrative.country",
+                    "elementType": "labels.text.fill",
+                    "stylers": [{"color": "#9e9e9e"}]
+                },
+                {
+                    "featureType": "administrative.locality",
+                    "elementType": "labels.text.fill",
+                    "stylers": [{"color": "#424242"}]
+                },
+                {
+                    "featureType": "poi",
+                    "stylers": [{"visibility": "off"}]
+                },
+                {
+                    "featureType": "road",
+                    "elementType": "geometry.fill",
+                    "stylers": [{"color": "#000000"}]
+                },
+                {
+                    "featureType": "road",
+                    "elementType": "labels.text.fill",
+                    "stylers": [{"color": "#757575"}]
+                },
+                {
+                    "featureType": "road.arterial",
+                    "elementType": "geometry",
+                    "stylers": [{"color": "#000000"}]
+                },
+                {
+                    "featureType": "road.highway",
+                    "elementType": "geometry",
+                    "stylers": [{"color": "#000000"}]
+                },
+                {
+                    "featureType": "water",
+                    "elementType": "geometry",
+                    "stylers": [{"color": "#c9c9c9"}]
+                },
+                {
+                    "featureType": "water",
+                    "elementType": "labels.text.fill",
+                    "stylers": [{"color": "#9e9e9e"}]
                 }
-            ]
+            ],
+            disableDefaultUI: true,
+            zoomControl: true,
+            mapTypeControl: false,
+            streetViewControl: false,
+            fullscreenControl: false,
+            rotateControl: false,
+            scaleControl: false,
+            gestureHandling: 'cooperative'
         });
         
         // Add click listener for location selection
@@ -468,16 +576,79 @@ function restoreCompleteMap(searchCenter, savedCircles) {
             center: searchCenter ? { lat: searchCenter.lat, lng: searchCenter.lng } : { lat: 53.3498, lng: -6.2603 },
             styles: [
                 {
-                    featureType: 'poi',
-                    elementType: 'labels',
-                    stylers: [{ visibility: 'off' }]
+                    "elementType": "geometry",
+                    "stylers": [{"color": "#f5f5f5"}]
                 },
                 {
-                    featureType: 'all',
-                    elementType: 'geometry',
-                    stylers: [{ saturation: -20 }]
+                    "elementType": "labels.icon",
+                    "stylers": [{"visibility": "off"}]
+                },
+                {
+                    "elementType": "labels.text.fill",
+                    "stylers": [{"color": "#616161"}]
+                },
+                {
+                    "elementType": "labels.text.stroke",
+                    "stylers": [{"color": "#f5f5f5"}]
+                },
+                {
+                    "featureType": "administrative",
+                    "elementType": "geometry",
+                    "stylers": [{"color": "#fefefe"}]
+                },
+                {
+                    "featureType": "administrative.country",
+                    "elementType": "labels.text.fill",
+                    "stylers": [{"color": "#9e9e9e"}]
+                },
+                {
+                    "featureType": "administrative.locality",
+                    "elementType": "labels.text.fill",
+                    "stylers": [{"color": "#424242"}]
+                },
+                {
+                    "featureType": "poi",
+                    "stylers": [{"visibility": "off"}]
+                },
+                {
+                    "featureType": "road",
+                    "elementType": "geometry.fill",
+                    "stylers": [{"color": "#000000"}]
+                },
+                {
+                    "featureType": "road",
+                    "elementType": "labels.text.fill",
+                    "stylers": [{"color": "#757575"}]
+                },
+                {
+                    "featureType": "road.arterial",
+                    "elementType": "geometry",
+                    "stylers": [{"color": "#000000"}]
+                },
+                {
+                    "featureType": "road.highway",
+                    "elementType": "geometry",
+                    "stylers": [{"color": "#000000"}]
+                },
+                {
+                    "featureType": "water",
+                    "elementType": "geometry",
+                    "stylers": [{"color": "#c9c9c9"}]
+                },
+                {
+                    "featureType": "water",
+                    "elementType": "labels.text.fill",
+                    "stylers": [{"color": "#9e9e9e"}]
                 }
-            ]
+            ],
+            disableDefaultUI: true,
+            zoomControl: true,
+            mapTypeControl: false,
+            streetViewControl: false,
+            fullscreenControl: false,
+            rotateControl: false,
+            scaleControl: false,
+            gestureHandling: 'cooperative'
         });
         
         // Add click listener for location selection
@@ -566,7 +737,7 @@ function restoreCompleteMap(searchCenter, savedCircles) {
                 // Green pin for potential clients
                 iconSvg = `
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <circle cx="12" cy="12" r="10" fill="#16a34a" stroke="white" stroke-width="3"/>
+                        <circle cx="12" cy="12" r="10" fill="#000000" stroke="white" stroke-width="3"/>
                         <text x="12" y="16" text-anchor="middle" fill="white" font-size="12" font-weight="bold">$</text>
                     </svg>
                 `;
@@ -594,11 +765,11 @@ function restoreCompleteMap(searchCenter, savedCircles) {
                 const infoWindow = new google.maps.InfoWindow({
                     content: `
                         <div style="padding: 8px; min-width: 200px;">
-                            <h3 style="margin: 0 0 8px 0; font-size: 16px; color: #16a34a;">${business.name}</h3>
+                            <h3 style="margin: 0 0 8px 0; font-size: 16px; color: #000000;">${business.name}</h3>
                             <p style="margin: 0 0 4px 0; font-size: 12px; color: #666;">${business.businessType || 'Business'}</p>
                             <p style="margin: 0 0 4px 0; font-size: 12px;"><strong>Distance:</strong> ${distance}</p>
                             <p style="margin: 0 0 8px 0; font-size: 12px;"><strong>Potential Value:</strong> $${business.estimatedValue ? business.estimatedValue.toLocaleString() : '2,500'}</p>
-                            <a href="tel:${business.formatted_phone_number}" style="color: #16a34a; text-decoration: none; font-weight: 600; font-size: 14px;">📞 ${business.formatted_phone_number}</a>
+                            <a href="tel:${business.formatted_phone_number}" style="color: #000000; text-decoration: none; font-weight: 600; font-size: 14px;">📞 ${business.formatted_phone_number}</a>
                         </div>
                     `
                 });
@@ -612,7 +783,7 @@ function restoreCompleteMap(searchCenter, savedCircles) {
                         <div style="padding: 8px; min-width: 150px;">
                             <h3 style="margin: 0 0 8px 0; font-size: 16px; color: #dc2626;">${business.name}</h3>
                             <p style="margin: 0 0 4px 0; font-size: 12px; color: #666;">${business.businessType || 'Business'}</p>
-                            <p style="margin: 0; font-size: 12px; color: #16a34a;">✅ Has Website</p>
+                            <p style="margin: 0; font-size: 12px; color: #000000;">✅ Has Website</p>
                         </div>
                     `
                 });
@@ -679,16 +850,79 @@ function initializeSearchMap(centerLocation) {
         zoom: 13,
         styles: [
             {
-                featureType: 'poi',
-                elementType: 'labels',
-                stylers: [{ visibility: 'off' }]
+                "elementType": "geometry",
+                "stylers": [{"color": "#f5f5f5"}]
             },
             {
-                featureType: 'all',
-                elementType: 'geometry',
-                stylers: [{ saturation: -20 }]
+                "elementType": "labels.icon",
+                "stylers": [{"visibility": "off"}]
+            },
+            {
+                "elementType": "labels.text.fill",
+                "stylers": [{"color": "#616161"}]
+            },
+            {
+                "elementType": "labels.text.stroke",
+                "stylers": [{"color": "#f5f5f5"}]
+            },
+            {
+                "featureType": "administrative",
+                "elementType": "geometry",
+                "stylers": [{"color": "#fefefe"}]
+            },
+            {
+                "featureType": "administrative.country",
+                "elementType": "labels.text.fill",
+                "stylers": [{"color": "#9e9e9e"}]
+            },
+            {
+                "featureType": "administrative.locality",
+                "elementType": "labels.text.fill",
+                "stylers": [{"color": "#424242"}]
+            },
+            {
+                "featureType": "poi",
+                "stylers": [{"visibility": "off"}]
+            },
+            {
+                "featureType": "road",
+                "elementType": "geometry.fill",
+                "stylers": [{"color": "#000000"}]
+            },
+            {
+                "featureType": "road",
+                "elementType": "labels.text.fill",
+                "stylers": [{"color": "#757575"}]
+            },
+            {
+                "featureType": "road.arterial",
+                "elementType": "geometry",
+                "stylers": [{"color": "#000000"}]
+            },
+            {
+                "featureType": "road.highway",
+                "elementType": "geometry",
+                "stylers": [{"color": "#000000"}]
+            },
+            {
+                "featureType": "water",
+                "elementType": "geometry",
+                "stylers": [{"color": "#c9c9c9"}]
+            },
+            {
+                "featureType": "water",
+                "elementType": "labels.text.fill",
+                "stylers": [{"color": "#9e9e9e"}]
             }
-        ]
+        ],
+        disableDefaultUI: true,
+        zoomControl: true,
+        mapTypeControl: false,
+        streetViewControl: false,
+        fullscreenControl: false,
+        rotateControl: false,
+        scaleControl: false,
+        gestureHandling: 'cooperative'
     });
     
     // Add center marker with pulsing animation
@@ -751,33 +985,76 @@ function showSearchCircle(centerLocation, radius) {
     
     searchCircles.push(permanentCircle);
     
-    // Start continuous sweeping radar effect
-    const sweepInterval = setInterval(() => {
-        const sweepCircle = new google.maps.Circle({
+    // Start sonar-like pulse animation
+    let pulseCount = 0;
+    const maxPulses = 3; // Maximum concurrent pulses
+    
+    const createPulse = () => {
+        // Don't create new pulses if tab is not visible
+        if (document.hidden) return;
+        
+        const pulseCircle = new google.maps.Circle({
             strokeColor: '#16a34a',
-            strokeOpacity: 0.8,
-            strokeWeight: 3,
+            strokeOpacity: 1,
+            strokeWeight: 2,
             fillColor: '#16a34a',
-            fillOpacity: 0.3,
+            fillOpacity: 0.2,
             map: resultsMap,
             center: { lat: centerLocation.lat, lng: centerLocation.lng },
-            radius: radius * 0.1
+            radius: 0
         });
         
-        // Animate sweep expansion
-        let sweepRadius = radius * 0.1;
-        const expandInterval = setInterval(() => {
-            sweepRadius += radius * 0.05;
-            
-            if (sweepRadius >= radius) {
-                sweepCircle.setMap(null);
-                clearInterval(expandInterval);
-            } else {
-                sweepCircle.setRadius(sweepRadius);
-            }
-        }, 30);
+        // Animate pulse expansion with easing
+        let currentRadius = 0;
+        let opacity = 1;
+        const startTime = performance.now();
+        const duration = 2000; // 2 seconds for full pulse
         
-    }, 600); // New sweep every 600ms
+        const animatePulse = (currentTime) => {
+            if (document.hidden) {
+                // Clean up if tab becomes hidden
+                pulseCircle.setMap(null);
+                return;
+            }
+            
+            const elapsed = currentTime - startTime;
+            const progress = Math.min(elapsed / duration, 1);
+            
+            // Eased expansion (starts fast, slows down)
+            const easedProgress = 1 - Math.pow(1 - progress, 3);
+            currentRadius = radius * easedProgress;
+            
+            // Fade out as it expands
+            opacity = Math.max(0, 1 - progress);
+            
+            pulseCircle.setRadius(currentRadius);
+            pulseCircle.setOptions({
+                strokeOpacity: opacity * 0.8,
+                fillOpacity: opacity * 0.15
+            });
+            
+            if (progress < 1) {
+                requestAnimationFrame(animatePulse);
+            } else {
+                // Remove pulse when complete
+                pulseCircle.setMap(null);
+                pulseCount--;
+            }
+        };
+        
+        pulseCount++;
+        requestAnimationFrame(animatePulse);
+    };
+    
+    // Create initial pulse immediately
+    createPulse();
+    
+    // Create new pulses every 800ms
+    const sweepInterval = setInterval(() => {
+        if (pulseCount < maxPulses && !document.hidden) {
+            createPulse();
+        }
+    }, 800);
     
     // Store the interval so we can stop it later
     activeSweepIntervals.set(radius, sweepInterval);
@@ -826,7 +1103,7 @@ function plotBusinessOnMap(business, status) {
         // Larger green pin for businesses without websites
         iconSvg = `
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <circle cx="12" cy="12" r="10" fill="#16a34a" stroke="white" stroke-width="3"/>
+                <circle cx="12" cy="12" r="10" fill="#000000" stroke="white" stroke-width="3"/>
                 <text x="12" y="16" text-anchor="middle" fill="white" font-size="12" font-weight="bold">$</text>
             </svg>
         `;
@@ -874,11 +1151,11 @@ function plotBusinessOnMap(business, status) {
         const infoWindow = new google.maps.InfoWindow({
             content: `
                 <div style="padding: 8px; min-width: 200px;">
-                    <h3 style="margin: 0 0 8px 0; font-size: 16px; color: #16a34a;">${business.name}</h3>
+                    <h3 style="margin: 0 0 8px 0; font-size: 16px; color: #000000;">${business.name}</h3>
                     <p style="margin: 0 0 4px 0; font-size: 12px; color: #666;">${business.businessType}</p>
                     <p style="margin: 0 0 4px 0; font-size: 12px;"><strong>Distance:</strong> ${distance}</p>
                     <p style="margin: 0 0 8px 0; font-size: 12px;"><strong>Potential Value:</strong> $${business.estimatedValue.toLocaleString()}</p>
-                    <a href="tel:${business.formatted_phone_number}" style="color: #16a34a; text-decoration: none; font-weight: 600; font-size: 14px;">📞 ${business.formatted_phone_number}</a>
+                    <a href="tel:${business.formatted_phone_number}" style="color: #000000; text-decoration: none; font-weight: 600; font-size: 14px;">📞 ${business.formatted_phone_number}</a>
                 </div>
             `
         });
@@ -931,7 +1208,7 @@ function filterMapView() {
                 // Green pin for potential clients
                 iconSvg = `
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <circle cx="12" cy="12" r="10" fill="#16a34a" stroke="white" stroke-width="3"/>
+                        <circle cx="12" cy="12" r="10" fill="#000000" stroke="white" stroke-width="3"/>
                         <text x="12" y="16" text-anchor="middle" fill="white" font-size="12" font-weight="bold">$</text>
                     </svg>
                 `;
@@ -957,11 +1234,11 @@ function filterMapView() {
                 const infoWindow = new google.maps.InfoWindow({
                     content: `
                         <div style="padding: 8px; min-width: 200px;">
-                            <h3 style="margin: 0 0 8px 0; font-size: 16px; color: #16a34a;">${business.name}</h3>
+                            <h3 style="margin: 0 0 8px 0; font-size: 16px; color: #000000;">${business.name}</h3>
                             <p style="margin: 0 0 4px 0; font-size: 12px; color: #666;">${business.businessType || 'Business'}</p>
                             <p style="margin: 0 0 4px 0; font-size: 12px;"><strong>Distance:</strong> ${distance}</p>
                             <p style="margin: 0 0 8px 0; font-size: 12px;"><strong>Potential Value:</strong> $${business.estimatedValue ? business.estimatedValue.toLocaleString() : '2,500'}</p>
-                            <a href="tel:${business.formatted_phone_number}" style="color: #16a34a; text-decoration: none; font-weight: 600; font-size: 14px;">📞 ${business.formatted_phone_number}</a>
+                            <a href="tel:${business.formatted_phone_number}" style="color: #000000; text-decoration: none; font-weight: 600; font-size: 14px;">📞 ${business.formatted_phone_number}</a>
                         </div>
                     `
                 });
@@ -976,7 +1253,7 @@ function filterMapView() {
                         <div style="padding: 8px; min-width: 150px;">
                             <h3 style="margin: 0 0 8px 0; font-size: 16px; color: #dc2626;">${business.name}</h3>
                             <p style="margin: 0 0 4px 0; font-size: 12px; color: #666;">${business.businessType || 'Business'}</p>
-                            <p style="margin: 0; font-size: 12px; color: #16a34a;">✅ Has Website</p>
+                            <p style="margin: 0; font-size: 12px; color: #000000;">✅ Has Website</p>
                         </div>
                     `
                 });
@@ -1210,6 +1487,9 @@ function useCurrentLocation() {
 
 async function searchBusinesses() {
     const locationInput = document.getElementById('location').value;
+    
+    // Hide stats panel during search
+    document.getElementById('statsPanel').style.display = 'none';
     
     if (!locationInput && !selectedLocation) {
         alert('Please select a location by clicking on the map or using current location');
@@ -1674,14 +1954,41 @@ function displayResults(businesses) {
                             <strong>Distance:</strong> ${distanceText}
                         </div>
                         <div class="card-section">
-                            <strong>Phone:</strong> <a href="tel:${business.formatted_phone_number}">${business.formatted_phone_number}</a>
+                            <strong>Phone:</strong> <a href="tel:${business.formatted_phone_number}" style="color: #000000;">${business.formatted_phone_number}</a>
                         </div>
                         <div class="card-section">
-                            <strong>Rating:</strong> ${business.rating ? '⭐ ' + business.rating + '/5' : 'No rating available'}
+                            <strong>Rating:</strong> ${business.rating ? '⭐ ' + business.rating + '/5' + (business.user_ratings_total ? ' (' + business.user_ratings_total + ' reviews)' : '') : 'No rating available'}
                         </div>
+                        ${business.price_level ? `
                         <div class="card-section">
-                            <strong>Estimated Value:</strong> $${business.estimatedValue.toLocaleString()}
+                            <strong>Price Level:</strong> ${'$'.repeat(business.price_level)} (${business.price_level}/4)
+                        </div>` : ''}
+                        ${business.opening_hours ? `
+                        <div class="card-section">
+                            <strong>Status:</strong> ${business.opening_hours.open_now ? '🟢 Open Now' : '🔴 Closed'}
+                        </div>` : ''}
+                        ${business.website ? `
+                        <div class="card-section">
+                            <strong>Website:</strong> <a href="${business.website}" target="_blank" style="color: #000000;">Visit Website</a>
+                        </div>` : `
+                        <div class="card-section">
+                            <strong>Website:</strong> <span style="color: #000000; font-weight: 600;">💰 No Website - Potential Client!</span>
+                        </div>`}
+                        ${business.types && business.types.length > 0 ? `
+                        <div class="card-section">
+                            <strong>Categories:</strong> ${business.types.slice(0, 3).map(type => type.replace(/_/g, ' ')).join(', ')}
+                        </div>` : ''}
+                        ${business.vicinity ? `
+                        <div class="card-section">
+                            <strong>Area:</strong> ${business.vicinity}
+                        </div>` : ''}
+                        <div class="card-section">
+                            <strong>Estimated Value:</strong> <span style="color: #000000; font-weight: 600;">$${business.estimatedValue.toLocaleString()}</span>
                         </div>
+                        ${business.place_id ? `
+                        <div class="card-section" style="font-size: 12px; opacity: 0.7;">
+                            <strong>Place ID:</strong> <code>${business.place_id}</code>
+                        </div>` : ''}
                     </div>
                     <div class="card-actions">
                         <button class="btn-whatsapp" onclick="sendWhatsAppByIndex(${index})">
@@ -1741,6 +2048,9 @@ function handleClickOutside(event) {
 }
 
 function updateStats(totalFound, withoutWebsite, potentialRevenue) {
+    // Show stats panel when we have data to display
+    document.getElementById('statsPanel').style.display = 'block';
+    
     document.getElementById('totalFound').textContent = totalFound;
     document.getElementById('withoutWebsite').textContent = withoutWebsite;
     document.getElementById('potentialRevenue').textContent = `$${potentialRevenue.toLocaleString()}`;
@@ -1946,18 +2256,53 @@ function toggleSelectAll() {
 function updateBulkActions() {
     const selectedInfo = document.getElementById('selectedInfo');
     const selectedCount = document.getElementById('selectedCount');
-    const contactBtn = document.getElementById('contactSelectedBtn');
+    const exportBtn = document.getElementById('exportSelectedBtn');
     
     if (selectedBusinesses.length > 0) {
         selectedInfo.style.display = 'block';
         selectedCount.textContent = `${selectedBusinesses.length} selected`;
-        contactBtn.disabled = false;
-        contactBtn.style.opacity = '1';
+        exportBtn.disabled = false;
+        exportBtn.style.opacity = '1';
     } else {
         selectedInfo.style.display = 'none';
-        contactBtn.disabled = true;
-        contactBtn.style.opacity = '0.5';
+        exportBtn.disabled = true;
+        exportBtn.style.opacity = '0.5';
     }
+}
+
+function exportSelected() {
+    if (selectedBusinesses.length === 0) {
+        alert('No businesses selected');
+        return;
+    }
+    
+    // Create CSV content for selected businesses
+    const headers = ['Name', 'Type', 'Phone', 'Address', 'Distance', 'Rating', 'Estimated Value'];
+    const csvContent = [
+        headers.join(','),
+        ...selectedBusinesses.map(business => [
+            `"${business.name}"`,
+            `"${business.businessType}"`,
+            `"${business.formatted_phone_number}"`,
+            `"${business.formatted_address}"`,
+            business.distance < 1 ? `${Math.round(business.distance * 1000)}m` : `${business.distance.toFixed(1)}km`,
+            business.rating || 'No rating',
+            `$${business.estimatedValue.toLocaleString()}`
+        ].join(','))
+    ].join('\n');
+    
+    // Download CSV file
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `selected-businesses-${new Date().toISOString().split('T')[0]}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
+    
+    console.log(`Exported ${selectedBusinesses.length} selected businesses to CSV`);
 }
 
 function bulkExport() {
@@ -1966,17 +2311,6 @@ function bulkExport() {
         return;
     }
     exportToCSV();
-}
-
-function bulkContact() {
-    if (selectedBusinesses.length === 0) {
-        alert('No businesses selected');
-        return;
-    }
-    
-    const phoneNumbers = selectedBusinesses.map(b => b.formatted_phone_number).join(', ');
-    const message = `Selected ${selectedBusinesses.length} high-priority prospects for contact:\n\n${phoneNumbers}\n\nUse the individual contact buttons to reach out to each business.`;
-    alert(message);
 }
 
 function exportToCSV() {
