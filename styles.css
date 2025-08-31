@@ -638,29 +638,213 @@ tr:hover {
 }
 
 @media (max-width: 768px) {
+    /* General mobile layout */
+    body {
+        font-size: 14px;
+    }
+    
+    .container {
+        padding: 12px;
+    }
+    
     .sidebar {
         padding: 16px;
     }
     
     .toolbar {
         padding: 16px;
+        gap: 12px;
     }
     
+    /* Search form mobile */
+    .search-form {
+        flex-direction: column;
+        gap: 12px;
+    }
+    
+    .search-form input,
+    .search-form select,
+    .search-form button {
+        width: 100%;
+        margin: 0;
+    }
+    
+    /* Tab buttons mobile */
+    .tab-buttons {
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+    
+    .tab-btn {
+        flex: 1;
+        min-width: 120px;
+        padding: 12px 16px;
+        font-size: 14px;
+    }
+    
+    /* Controls mobile */
+    .toolbar-actions {
+        flex-direction: column;
+        gap: 12px;
+    }
+    
+    .toolbar-actions input,
+    .toolbar-actions select,
+    .toolbar-actions button {
+        width: 100%;
+    }
+    
+    /* Map filter controls mobile */
+    .map-filter-controls {
+        flex-direction: column;
+        gap: 12px;
+    }
+    
+    .radio-label {
+        padding: 12px;
+        border-radius: 8px;
+        border: 1px solid #e5e7eb;
+        background: white;
+    }
+    
+    /* Table mobile */
     .table-container {
         overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
     }
     
     table {
         min-width: 800px;
+        font-size: 13px;
     }
     
     th, td {
-        padding: 12px 8px;
+        padding: 8px 6px;
     }
     
     .actions {
         flex-direction: column;
         gap: 4px;
+        min-width: 120px;
+    }
+    
+    .actions button {
+        font-size: 12px;
+        padding: 6px 12px;
+    }
+    
+    /* Map mobile */
+    #resultsMap {
+        height: 400px !important;
+    }
+    
+    /* Stats panel mobile */
+    .stats-panel {
+        padding: 16px;
+    }
+    
+    .stats-grid {
+        grid-template-columns: 1fr;
+        gap: 16px;
+    }
+    
+    .stat-item {
+        text-align: center;
+        padding: 16px;
+        border-radius: 8px;
+        background: #f9fafb;
+    }
+    
+    /* Export buttons mobile */
+    .export-actions {
+        flex-direction: column;
+        gap: 8px;
+    }
+    
+    .export-actions button {
+        width: 100%;
+    }
+    
+    /* Loading mobile */
+    .loading-container {
+        padding: 20px;
+    }
+    
+    .loading-status {
+        font-size: 16px;
+    }
+    
+    .loading-details {
+        font-size: 14px;
+    }
+}
+
+@media (max-width: 480px) {
+    /* Extra small mobile */
+    .container {
+        padding: 8px;
+    }
+    
+    .sidebar {
+        padding: 12px;
+    }
+    
+    .toolbar {
+        padding: 12px;
+    }
+    
+    /* Smaller buttons */
+    .btn-primary,
+    .btn-secondary {
+        padding: 10px 16px;
+        font-size: 14px;
+    }
+    
+    .btn-large {
+        padding: 12px 20px;
+        font-size: 16px;
+    }
+    
+    /* Smaller form elements */
+    input,
+    select,
+    button {
+        padding: 10px 12px;
+        font-size: 14px;
+    }
+    
+    /* Tab buttons smaller */
+    .tab-btn {
+        padding: 10px 12px;
+        font-size: 13px;
+        min-width: 100px;
+    }
+    
+    /* Map smaller on very small screens */
+    #resultsMap {
+        height: 300px !important;
+    }
+    
+    /* Table even more compact */
+    table {
+        font-size: 12px;
+    }
+    
+    th, td {
+        padding: 6px 4px;
+    }
+    
+    /* Stats more compact */
+    .stat-item {
+        padding: 12px;
+    }
+    
+    .stat-value {
+        font-size: 20px;
+    }
+    
+    .stat-label {
+        font-size: 12px;
     }
 }
 
@@ -1107,4 +1291,396 @@ tr.selected {
     border-radius: 3px;
     font-family: monospace;
     font-size: 11px;
+}
+/* Mobile onboarding improvements */
+@media (max-width: 768px) {
+    .onboarding-step {
+        padding: 20px;
+        max-width: 100%;
+    }
+    
+    .step-content {
+        padding: 24px 20px;
+        margin: 0;
+    }
+    
+    .step-content h1 {
+        font-size: 24px;
+        margin-bottom: 12px;
+    }
+    
+    .step-content h2 {
+        font-size: 20px;
+        margin-bottom: 10px;
+    }
+    
+    .welcome-text {
+        font-size: 16px;
+        margin-bottom: 24px;
+    }
+    
+    .welcome-icon {
+        font-size: 48px;
+        margin-bottom: 16px;
+    }
+    
+    .form-group {
+        margin-bottom: 20px;
+    }
+    
+    .form-group input,
+    .form-group select {
+        padding: 12px 14px;
+        font-size: 16px; /* Prevents zoom on iOS */
+    }
+    
+    .step-actions {
+        flex-direction: column;
+        gap: 12px;
+        margin-top: 24px;
+    }
+    
+    .btn-large {
+        width: 100%;
+        padding: 14px 24px;
+        font-size: 16px;
+    }
+    
+    .info-box {
+        padding: 16px;
+        margin-bottom: 20px;
+    }
+    
+    .info-box h4 {
+        font-size: 16px;
+    }
+    
+    .info-box li {
+        font-size: 14px;
+        margin-bottom: 6px;
+    }
+}
+
+@media (max-width: 480px) {
+    .onboarding-step {
+        padding: 16px;
+    }
+    
+    .step-content {
+        padding: 20px 16px;
+        border-radius: 8px;
+    }
+    
+    .step-content h1 {
+        font-size: 22px;
+    }
+    
+    .step-content h2 {
+        font-size: 18px;
+    }
+    
+    .welcome-text {
+        font-size: 15px;
+        line-height: 1.5;
+    }
+    
+    .welcome-icon {
+        font-size: 40px;
+    }
+    
+    .form-group input,
+    .form-group select {
+        padding: 12px;
+    }
+    
+    .info-box {
+        padding: 12px;
+    }
+}
+/* Touch-friendly mobile improvements */
+@media (max-width: 768px) {
+    /* Larger touch targets */
+    button,
+    .btn-primary,
+    .btn-secondary,
+    .btn-whatsapp {
+        min-height: 44px; /* iOS recommended touch target */
+        touch-action: manipulation; /* Prevents double-tap zoom */
+    }
+    
+    /* Better checkbox touch targets */
+    input[type="checkbox"] {
+        width: 20px;
+        height: 20px;
+        margin: 8px;
+    }
+    
+    /* Radio button improvements */
+    .radio-label {
+        min-height: 44px;
+        display: flex;
+        align-items: center;
+        cursor: pointer;
+        -webkit-tap-highlight-color: rgba(0,0,0,0.1);
+    }
+    
+    .radio-label input[type="radio"] {
+        width: 20px;
+        height: 20px;
+        margin-right: 12px;
+    }
+    
+    /* Better tap highlights */
+    a, button, .tab-btn, .radio-label {
+        -webkit-tap-highlight-color: rgba(0,0,0,0.1);
+    }
+    
+    /* Prevent text selection on buttons */
+    button, .btn-primary, .btn-secondary, .btn-whatsapp, .tab-btn {
+        -webkit-user-select: none;
+        -moz-user-select: none;
+        -ms-user-select: none;
+        user-select: none;
+    }
+    
+    /* Better scrolling */
+    .table-container {
+        -webkit-overflow-scrolling: touch;
+        scroll-behavior: smooth;
+    }
+    
+    /* Card improvements for mobile */
+    .business-card {
+        margin-bottom: 16px;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    
+    .card-body {
+        padding: 16px;
+    }
+    
+    .card-section {
+        margin-bottom: 12px;
+        line-height: 1.4;
+    }
+    
+    .card-actions {
+        padding: 16px;
+        border-top: 1px solid #e5e7eb;
+    }
+    
+    .card-actions button {
+        width: 100%;
+        justify-content: center;
+    }
+}
+/* Mobile layout reordering */
+@media (max-width: 768px) {
+    /* Overall mobile layout */
+    .dashboard {
+        flex-direction: column;
+    }
+    
+    /* Sidebar becomes top header */
+    .sidebar {
+        width: 100%;
+        height: auto;
+        position: static;
+        border-right: none;
+        border-bottom: 1px solid #e4e4e7;
+        padding: 16px;
+    }
+    
+    /* App title in sidebar */
+    .sidebar h1 {
+        font-size: 20px;
+        text-align: center;
+        padding: 12px 0;
+        margin: 0 0 16px 0;
+        border-bottom: 1px solid #e5e7eb;
+    }
+    
+    /* Main content structure */
+    .main-content {
+        display: flex;
+        flex-direction: column;
+        flex: 1;
+    }
+    
+    /* Tab buttons when moved to main content */
+    .main-content .tab-buttons {
+        display: flex;
+        gap: 8px;
+        margin: 0;
+    }
+    
+    .tab-btn {
+        flex: 1;
+        padding: 12px 8px;
+        font-size: 14px;
+        text-align: center;
+    }
+    
+    /* Content area (map/table) */
+    .content-area {
+        flex: 1;
+    }
+    
+    /* Map prominence */
+    #mapView {
+        min-height: 400px;
+    }
+    
+    #resultsMap {
+        height: 400px !important;
+    }
+    
+    /* Toolbar controls */
+    .toolbar {
+        padding: 12px 16px;
+        background: white;
+        border-top: 1px solid #e5e7eb;
+    }
+}
+    
+    /* Mobile tab buttons */
+    .tab-buttons {
+        display: flex;
+        gap: 8px;
+        margin-bottom: 16px;
+    }
+    
+    .tab-btn {
+        flex: 1;
+        padding: 12px 8px;
+        font-size: 14px;
+        text-align: center;
+    }
+    
+    /* Mobile location section */
+    .location-section {
+        background: #f9fafb;
+        padding: 12px;
+        border-radius: 8px;
+        margin-bottom: 16px;
+    }
+    
+    .location-section h3 {
+        font-size: 14px;
+        margin-bottom: 8px;
+        color: #374151;
+    }
+    
+    /* Mobile search form */
+    .search-form {
+        background: white;
+        padding: 16px;
+        border-radius: 8px;
+        border: 1px solid #e5e7eb;
+    }
+    
+    .search-form .form-group {
+        margin-bottom: 12px;
+    }
+    
+    .search-form .form-group:last-child {
+        margin-bottom: 0;
+    }
+    
+    /* Mobile search button */
+    .search-form button {
+        width: 100%;
+        padding: 14px;
+        font-size: 16px;
+        font-weight: 600;
+    }
+}
+
+/* Ensure desktop layout isn't affected */
+@media (min-width: 769px) {
+    .sidebar > * {
+        order: initial; /* Reset order for desktop */
+    }
+}
+/* Mobile toolbar and controls positioning */
+@media (max-width: 768px) {
+    /* Move toolbar controls to top of main content */
+    .main-content {
+        display: flex;
+        flex-direction: column;
+    }
+    
+    .toolbar {
+        order: 1; /* Controls at top of main content */
+        padding: 12px 16px;
+        background: white;
+        border-bottom: 1px solid #e5e7eb;
+        margin-bottom: 0;
+    }
+    
+    .content-area {
+        order: 2; /* Content below controls */
+        flex: 1;
+    }
+    
+    /* Mobile toolbar actions */
+    .toolbar-actions {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+    
+    /* Table controls mobile */
+    #tableControls {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+    
+    #tableControls input {
+        width: 100%;
+        padding: 10px 12px;
+    }
+    
+    #tableControls select {
+        width: 100%;
+        padding: 10px 12px;
+    }
+    
+    #tableControls button {
+        width: 100%;
+        padding: 10px 12px;
+    }
+    
+    /* Map controls mobile */
+    #mapControls .map-filter-controls {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+    
+    /* Export actions mobile */
+    .export-actions {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        margin-top: 12px;
+    }
+    
+    .export-actions button {
+        width: 100%;
+        padding: 10px 12px;
+        font-size: 14px;
+    }
+    
+    /* Selected info mobile */
+    #selectedInfo {
+        background: #f0f9ff;
+        padding: 8px 12px;
+        border-radius: 6px;
+        margin-bottom: 8px;
+        font-size: 14px;
+        text-align: center;
+    }
 }

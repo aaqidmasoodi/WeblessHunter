@@ -206,11 +206,45 @@ function syncControlsWithCurrentView() {
     }
 }
 
+function handleMobileLayout() {
+    const isMobile = window.innerWidth <= 768;
+    const tabButtons = document.querySelector('.tab-buttons');
+    const mainContent = document.querySelector('.main-content');
+    const sidebar = document.querySelector('.sidebar');
+    
+    if (isMobile) {
+        // Move tab buttons to top of main content
+        if (tabButtons && mainContent && tabButtons.parentElement !== mainContent) {
+            mainContent.insertBefore(tabButtons, mainContent.firstChild);
+            tabButtons.style.order = '1';
+            tabButtons.style.padding = '16px';
+            tabButtons.style.background = 'white';
+            tabButtons.style.borderBottom = '1px solid #e5e7eb';
+        }
+    } else {
+        // Move tab buttons back to sidebar for desktop
+        if (tabButtons && sidebar && tabButtons.parentElement !== sidebar) {
+            sidebar.appendChild(tabButtons);
+            tabButtons.style.order = '';
+            tabButtons.style.padding = '';
+            tabButtons.style.background = '';
+            tabButtons.style.borderBottom = '';
+        }
+    }
+}
+
+// Handle mobile layout on load and resize
+window.addEventListener('load', handleMobileLayout);
+window.addEventListener('resize', handleMobileLayout);
+
 // Initialize onboarding check when page loads
 document.addEventListener('DOMContentLoaded', () => {
     checkOnboardingStatus();
     // Sync controls after a short delay to ensure DOM is ready
-    setTimeout(syncControlsWithCurrentView, 100);
+    setTimeout(() => {
+        syncControlsWithCurrentView();
+        handleMobileLayout();
+    }, 100);
 });
 
 let map, service;
