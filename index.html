@@ -8,6 +8,142 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 </head>
 <body>
+    <!-- Onboarding Form -->
+    <div id="onboardingContainer" class="onboarding-container">
+        <!-- Step 1: Welcome -->
+        <div id="step1" class="onboarding-step active">
+            <div class="step-content">
+                <div class="welcome-icon">🎯</div>
+                <h1>Welcome to WeblessHunter</h1>
+                <p class="welcome-text">Discover businesses without websites and turn them into clients using advanced radar search technology.</p>
+                <div class="features-list">
+                    <div class="feature-item">
+                        <span class="feature-icon">🗺️</span>
+                        <span>Interactive map-based business discovery</span>
+                    </div>
+                    <div class="feature-item">
+                        <span class="feature-icon">💰</span>
+                        <span>Identify potential clients without websites</span>
+                    </div>
+                    <div class="feature-item">
+                        <span class="feature-icon">📱</span>
+                        <span>Direct WhatsApp contact integration</span>
+                    </div>
+                </div>
+                <button onclick="nextStep()" class="btn-primary btn-large">Get Started</button>
+            </div>
+        </div>
+
+        <!-- Step 2: User Info -->
+        <div id="step2" class="onboarding-step">
+            <div class="step-content">
+                <h2>Tell us about yourself</h2>
+                <p>Help us personalize your experience</p>
+                
+                <div class="form-group">
+                    <label for="userName">Your Name</label>
+                    <input type="text" id="userName" placeholder="Enter your full name">
+                </div>
+                
+                <div class="form-group">
+                    <label for="userRole">What do you do?</label>
+                    <select id="userRole">
+                        <option value="">Select your role</option>
+                        <option value="freelancer">Freelancer</option>
+                        <option value="agency">Agency Owner</option>
+                        <option value="consultant">Consultant</option>
+                        <option value="developer">Web Developer</option>
+                        <option value="marketer">Digital Marketer</option>
+                        <option value="other">Other</option>
+                    </select>
+                </div>
+                
+                <div class="step-actions">
+                    <button onclick="prevStep()" class="btn-secondary">Back</button>
+                    <button onclick="nextStep()" class="btn-primary">Continue</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Step 3: Location -->
+        <div id="step3" class="onboarding-step">
+            <div class="step-content">
+                <h2>Your Location</h2>
+                <p>This helps us provide better search results</p>
+                
+                <div class="form-group">
+                    <label for="userCountry">Country</label>
+                    <select id="userCountry">
+                        <option value="">Select your country</option>
+                        <option value="IE">Ireland</option>
+                        <option value="GB">United Kingdom</option>
+                        <option value="US">United States</option>
+                        <option value="CA">Canada</option>
+                        <option value="AU">Australia</option>
+                        <option value="DE">Germany</option>
+                        <option value="FR">France</option>
+                        <option value="ES">Spain</option>
+                        <option value="IT">Italy</option>
+                        <option value="NL">Netherlands</option>
+                        <option value="IN">India</option>
+                        <option value="other">Other</option>
+                    </select>
+                </div>
+                
+                <div class="location-access">
+                    <button onclick="requestLocationAccess()" class="btn-secondary btn-location">
+                        📍 Allow Location Access
+                    </button>
+                    <p class="location-status" id="locationStatus">Optional: Get your precise location for better results</p>
+                </div>
+                
+                <div class="step-actions">
+                    <button onclick="prevStep()" class="btn-secondary">Back</button>
+                    <button onclick="nextStep()" class="btn-primary">Continue</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Step 4: API Key -->
+        <div id="step4" class="onboarding-step">
+            <div class="step-content">
+                <h2>Google Maps API Key</h2>
+                <p>Required to search for businesses</p>
+                
+                <div class="api-info">
+                    <div class="info-box">
+                        <h4>How to get your API key:</h4>
+                        <ol>
+                            <li>Go to <a href="https://console.cloud.google.com/" target="_blank">Google Cloud Console</a></li>
+                            <li>Create a new project or select existing one</li>
+                            <li>Enable "Places API" and "Maps JavaScript API"</li>
+                            <li>Create credentials (API Key)</li>
+                            <li>Copy and paste the key below</li>
+                        </ol>
+                        <a href="https://developers.google.com/maps/documentation/places/web-service/get-api-key" target="_blank" class="help-link">
+                            📖 Detailed Guide
+                        </a>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="apiKey">Google Maps API Key</label>
+                    <input type="text" id="apiKey" placeholder="Enter your Google Maps API key">
+                    <div class="api-status" id="apiStatus"></div>
+                </div>
+                
+                <div class="step-actions">
+                    <button onclick="prevStep()" class="btn-secondary">Back</button>
+                    <button onclick="validateAndFinish()" class="btn-primary" id="finishBtn">
+                        <span id="finishBtnText">Validate & Start Hunting</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main App (Hidden initially) -->
+    <div id="mainApp" class="main-app" style="display: none;">
     <div class="dashboard">
         <!-- Sidebar/Search Panel -->
         <div class="sidebar">
@@ -107,6 +243,11 @@
                         <span id="selectedCount">0 selected</span>
                     </div>
                 </div>
+                
+                <!-- Factory Reset Button -->
+                <button onclick="factoryReset()" class="btn-outline-danger btn-factory-reset">
+                    🔄 Factory Reset
+                </button>
             </div>
         </div>
 
@@ -192,10 +333,9 @@
         </div>
         </div>
     </div>
+    </div>
 
     <script src="app.js"></script>
-    <script async defer 
-        src="https://maps.googleapis.com/maps/api/js?key=AIzaSyD8wMGrkFzthfIq4kc9CuIWLGPHdInO9j0&libraries=places&callback=initMap&loading=async">
-    </script>
+    <script id="googleMapsScript"></script>
 </body>
 </html>

@@ -1,3 +1,173 @@
+// Onboarding System
+let currentStep = 1;
+let userOnboardingData = {};
+
+// Check if user has completed onboarding
+function checkOnboardingStatus() {
+    const onboardingData = localStorage.getItem('weblessHunterOnboarding');
+    if (onboardingData) {
+        // User has completed onboarding, show main app
+        userOnboardingData = JSON.parse(onboardingData);
+        showMainApp();
+        loadGoogleMapsAPI(userOnboardingData.apiKey);
+    } else {
+        // Show onboarding
+        showOnboarding();
+    }
+}
+
+function showOnboarding() {
+    document.getElementById('onboardingContainer').style.display = 'flex';
+    document.getElementById('mainApp').style.display = 'none';
+}
+
+function showMainApp() {
+    document.getElementById('onboardingContainer').style.display = 'none';
+    document.getElementById('mainApp').style.display = 'block';
+}
+
+function nextStep() {
+    // Validate current step
+    if (!validateCurrentStep()) {
+        return;
+    }
+    
+    // Hide current step
+    document.getElementById(`step${currentStep}`).classList.remove('active');
+    
+    // Show next step
+    currentStep++;
+    document.getElementById(`step${currentStep}`).classList.add('active');
+}
+
+function prevStep() {
+    // Hide current step
+    document.getElementById(`step${currentStep}`).classList.remove('active');
+    
+    // Show previous step
+    currentStep--;
+    document.getElementById(`step${currentStep}`).classList.add('active');
+}
+
+function validateCurrentStep() {
+    switch(currentStep) {
+        case 1:
+            return true; // Welcome step, no validation needed
+        case 2:
+            const name = document.getElementById('userName').value.trim();
+            const role = document.getElementById('userRole').value;
+            if (!name || !role) {
+                alert('Please fill in all fields');
+                return false;
+            }
+            userOnboardingData.name = name;
+            userOnboardingData.role = role;
+            return true;
+        case 3:
+            const country = document.getElementById('userCountry').value;
+            if (!country) {
+                alert('Please select your country');
+                return false;
+            }
+            userOnboardingData.country = country;
+            return true;
+        default:
+            return true;
+    }
+}
+
+function requestLocationAccess() {
+    if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+            (position) => {
+                userOnboardingData.location = {
+                    lat: position.coords.latitude,
+                    lng: position.coords.longitude
+                };
+                document.getElementById('locationStatus').textContent = '✅ Location access granted';
+                document.getElementById('locationStatus').style.color = '#16a34a';
+            },
+            (error) => {
+                document.getElementById('locationStatus').textContent = '❌ Location access denied';
+                document.getElementById('locationStatus').style.color = '#dc2626';
+            }
+        );
+    } else {
+        document.getElementById('locationStatus').textContent = '❌ Geolocation not supported';
+        document.getElementById('locationStatus').style.color = '#dc2626';
+    }
+}
+
+async function validateAndFinish() {
+    const apiKey = document.getElementById('apiKey').value.trim();
+    if (!apiKey) {
+        alert('Please enter your Google Maps API key');
+        return;
+    }
+    
+    // Show loading state
+    const finishBtn = document.getElementById('finishBtn');
+    const finishBtnText = document.getElementById('finishBtnText');
+    finishBtn.disabled = true;
+    finishBtnText.textContent = 'Validating API Key...';
+    
+    // Validate API key
+    const isValid = await validateGoogleMapsAPIKey(apiKey);
+    
+    if (isValid) {
+        // Save onboarding data
+        userOnboardingData.apiKey = apiKey;
+        userOnboardingData.completedAt = new Date().toISOString();
+        localStorage.setItem('weblessHunterOnboarding', JSON.stringify(userOnboardingData));
+        
+        // Show success and transition to main app
+        document.getElementById('apiStatus').textContent = '✅ API Key is valid!';
+        document.getElementById('apiStatus').className = 'api-status success';
+        
+        setTimeout(() => {
+            showMainApp();
+            loadGoogleMapsAPI(apiKey);
+        }, 1000);
+    } else {
+        // Show error
+        document.getElementById('apiStatus').textContent = '❌ Invalid API Key. Please check and try again.';
+        document.getElementById('apiStatus').className = 'api-status error';
+        
+        finishBtn.disabled = false;
+        finishBtnText.textContent = 'Validate & Start Hunting';
+    }
+}
+
+async function validateGoogleMapsAPIKey(apiKey) {
+    // Simple format validation - Google API keys are typically 39 characters long
+    // and start with "AIza"
+    if (apiKey.length >= 35 && apiKey.startsWith('AIza')) {
+        return true;
+    }
+    return false;
+}
+
+function loadGoogleMapsAPI(apiKey) {
+    const script = document.createElement('script');
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places&callback=initMap&loading=async`;
+    script.async = true;
+    script.defer = true;
+    document.getElementById('googleMapsScript').appendChild(script);
+}
+
+function factoryReset() {
+    if (confirm('Are you sure you want to reset everything? This will delete all your data and settings.')) {
+        // Clear all localStorage
+        localStorage.clear();
+        
+        // Reload the page to start fresh
+        window.location.reload();
+    }
+}
+
+// Initialize onboarding check when page loads
+document.addEventListener('DOMContentLoaded', checkOnboardingStatus);
+
 let map, service;
 let currentResults = [];
 let selectedBusinesses = [];
@@ -1102,9 +1272,6 @@ function getCoordinates(locationInput) {
 }
 
 async function findBusinessesWithoutWebsites(location) {
-    // Get country code from coordinates for WhatsApp
-    currentCountryCode = await getCountryFromCoordinates(location.lat, location.lng);
-    
     const businessType = document.getElementById('businessType').value;
     const searchIntensity = document.getElementById('searchIntensity').value;
     
@@ -1465,7 +1632,7 @@ function displayResults(businesses) {
             </td>
             <td>
                 <div class="actions">
-                    <button class="btn-whatsapp btn-sm" onclick="event.stopPropagation(); sendWhatsApp('${business.formatted_phone_number}', '${business.name.replace(/'/g, "\\'")}', '${business.businessType || 'Business'}')">
+                    <button class="btn-whatsapp btn-sm" onclick="event.stopPropagation(); sendWhatsAppByIndex(${index})">
                         <i class="fab fa-whatsapp"></i> WhatsApp
                     </button>
                 </div>
@@ -1517,7 +1684,7 @@ function displayResults(businesses) {
                         </div>
                     </div>
                     <div class="card-actions">
-                        <button class="btn-whatsapp" onclick="sendWhatsApp('${business.formatted_phone_number}', '${business.name.replace(/'/g, "\\'")}', '${business.businessType || 'Business'}')">
+                        <button class="btn-whatsapp" onclick="sendWhatsAppByIndex(${index})">
                             <i class="fab fa-whatsapp"></i> Contact via WhatsApp
                         </button>
                     </div>
@@ -1884,90 +2051,170 @@ function showResultsMap() {
     filterMapView();
 }
 
-// Store current search country code
-let currentCountryCode = '1'; // Default to +1
-
 // Country code mapping for common countries
 const countryToPhoneCode = {
-    'IE': '353', // Ireland
-    'GB': '44',  // United Kingdom
-    'US': '1',   // United States
-    'CA': '1',   // Canada
-    'AU': '61',  // Australia
-    'DE': '49',  // Germany
-    'FR': '33',  // France
-    'ES': '34',  // Spain
-    'IT': '39',  // Italy
-    'NL': '31',  // Netherlands
-    'BE': '32',  // Belgium
-    'CH': '41',  // Switzerland
-    'AT': '43',  // Austria
-    'SE': '46',  // Sweden
-    'NO': '47',  // Norway
-    'DK': '45',  // Denmark
-    'FI': '358', // Finland
-    'PL': '48',  // Poland
-    'CZ': '420', // Czech Republic
-    'PT': '351', // Portugal
-    'IN': '91',  // India
-    'CN': '86',  // China
-    'JP': '81',  // Japan
-    'KR': '82',  // South Korea
-    'BR': '55',  // Brazil
-    'MX': '52',  // Mexico
-    'AR': '54',  // Argentina
-    'ZA': '27',  // South Africa
-    'EG': '20',  // Egypt
-    'NG': '234', // Nigeria
-    'KE': '254', // Kenya
-    'AE': '971', // UAE
-    'SA': '966', // Saudi Arabia
-    'TR': '90',  // Turkey
-    'RU': '7',   // Russia
-    'UA': '380', // Ukraine
-    'GR': '30',  // Greece
-    'BG': '359', // Bulgaria
-    'RO': '40',  // Romania
-    'HU': '36',  // Hungary
-    'HR': '385', // Croatia
-    'SI': '386', // Slovenia
-    'SK': '421', // Slovakia
-    'LT': '370', // Lithuania
-    'LV': '371', // Latvia
-    'EE': '372'  // Estonia
+    'ireland': '353',
+    'uk': '44',
+    'united kingdom': '44',
+    'usa': '1',
+    'united states': '1',
+    'canada': '1',
+    'australia': '61',
+    'germany': '49',
+    'france': '33',
+    'spain': '34',
+    'italy': '39',
+    'netherlands': '31',
+    'belgium': '32',
+    'switzerland': '41',
+    'austria': '43',
+    'sweden': '46',
+    'norway': '47',
+    'denmark': '45',
+    'finland': '358',
+    'poland': '48',
+    'czech republic': '420',
+    'portugal': '351',
+    'india': '91',
+    'china': '86',
+    'japan': '81',
+    'south korea': '82',
+    'brazil': '55',
+    'mexico': '52',
+    'argentina': '54',
+    'south africa': '27',
+    'egypt': '20',
+    'nigeria': '234',
+    'kenya': '254',
+    'uae': '971',
+    'saudi arabia': '966',
+    'turkey': '90',
+    'russia': '7',
+    'ukraine': '380',
+    'greece': '30',
+    'bulgaria': '359',
+    'romania': '40',
+    'hungary': '36',
+    'croatia': '385',
+    'slovenia': '386',
+    'slovakia': '421',
+    'lithuania': '370',
+    'latvia': '371',
+    'estonia': '372'
 };
 
-async function getCountryFromCoordinates(lat, lng) {
-    try {
-        const geocoder = new google.maps.Geocoder();
-        const response = await new Promise((resolve, reject) => {
-            geocoder.geocode({ location: { lat, lng } }, (results, status) => {
-                if (status === 'OK') resolve(results);
-                else reject(status);
-            });
-        });
-
-        // Find country component
-        for (const result of response) {
-            for (const component of result.address_components) {
-                if (component.types.includes('country')) {
-                    const countryCode = component.short_name;
-                    const phoneCode = countryToPhoneCode[countryCode] || '1';
-                    console.log(`Country: ${component.long_name} (${countryCode}), Phone code: +${phoneCode}`);
-                    return phoneCode;
-                }
-            }
+function getCountryCodeFromAddress(address) {
+    if (!address) return '1'; // Default fallback
+    
+    // Get the last part of the address (usually the country)
+    const addressLower = address.toLowerCase();
+    
+    // Check if any country name appears in the address
+    for (const [country, code] of Object.entries(countryToPhoneCode)) {
+        if (addressLower.includes(country)) {
+            console.log(`Found country "${country}" in address, using phone code +${code}`);
+            return code;
         }
-    } catch (error) {
-        console.log('Geocoding error:', error);
     }
     
+    console.log('No country match found in address, using default +1');
     return '1'; // Default fallback
 }
 
-function sendWhatsApp(phoneNumber, businessName, businessType) {
-    // Use the stored country code from the search location
-    const countryCode = currentCountryCode;
+function getCountryCodeFromPlaceDetails(place) {
+    // Check if place has address_components (from detailed place info)
+    if (place.address_components) {
+        for (const component of place.address_components) {
+            if (component.types.includes('country')) {
+                const countryCode = component.short_name.toLowerCase();
+                const phoneCode = getPhoneCodeFromCountryCode(countryCode);
+                console.log(`Found country component: ${component.long_name} (${countryCode}), using phone code +${phoneCode}`);
+                return phoneCode;
+            }
+        }
+    }
+    
+    // Fallback to address parsing if no address_components
+    return getCountryCodeFromAddress(place.formatted_address);
+}
+
+function getPhoneCodeFromCountryCode(countryCode) {
+    const countryCodeMap = {
+        'ie': '353', // Ireland
+        'gb': '44',  // United Kingdom
+        'us': '1',   // United States
+        'ca': '1',   // Canada
+        'au': '61',  // Australia
+        'de': '49',  // Germany
+        'fr': '33',  // France
+        'es': '34',  // Spain
+        'it': '39',  // Italy
+        'nl': '31',  // Netherlands
+        'be': '32',  // Belgium
+        'ch': '41',  // Switzerland
+        'at': '43',  // Austria
+        'se': '46',  // Sweden
+        'no': '47',  // Norway
+        'dk': '45',  // Denmark
+        'fi': '358', // Finland
+        'pl': '48',  // Poland
+        'cz': '420', // Czech Republic
+        'pt': '351', // Portugal
+        'in': '91',  // India
+        'cn': '86',  // China
+        'jp': '81',  // Japan
+        'kr': '82',  // South Korea
+        'br': '55',  // Brazil
+        'mx': '52',  // Mexico
+        'ar': '54',  // Argentina
+        'za': '27',  // South Africa
+        'eg': '20',  // Egypt
+        'ng': '234', // Nigeria
+        'ke': '254', // Kenya
+        'ae': '971', // UAE
+        'sa': '966', // Saudi Arabia
+        'tr': '90',  // Turkey
+        'ru': '7',   // Russia
+        'ua': '380', // Ukraine
+        'gr': '30',  // Greece
+        'bg': '359', // Bulgaria
+        'ro': '40',  // Romania
+        'hu': '36',  // Hungary
+        'hr': '385', // Croatia
+        'si': '386', // Slovenia
+        'sk': '421', // Slovakia
+        'lt': '370', // Lithuania
+        'lv': '371', // Latvia
+        'ee': '372'  // Estonia
+    };
+    
+    return countryCodeMap[countryCode] || '1';
+}
+
+function sendWhatsAppByIndex(index) {
+    const business = currentResults[index];
+    if (!business) {
+        console.error('Business not found at index:', index);
+        return;
+    }
+    
+    sendWhatsApp(
+        business.formatted_phone_number,
+        business.name,
+        business.businessType || 'Business',
+        business // Pass full business object
+    );
+}
+
+function sendWhatsApp(phoneNumber, businessName, businessType, businessPlace) {
+    // Get user's country code as default, then try business location
+    let countryCode = getUserCountryCode();
+    
+    // Try to get more specific country code from business location if available
+    const businessCountryCode = getCountryCodeFromPlaceDetails(businessPlace);
+    if (businessCountryCode !== '1') { // If we found a specific country code
+        countryCode = businessCountryCode;
+    }
     
     // Clean and format phone number properly
     let cleanPhone = phoneNumber.replace(/[\s\-\(\)\+]/g, '');
@@ -1979,14 +2226,8 @@ function sendWhatsApp(phoneNumber, businessName, businessType) {
         cleanPhone = countryCode + cleanPhone;
     }
     
-    // Create message
-    const message = `Hi ${businessName}! 👋
-
-I noticed you don't have a website yet. I help ${businessType.toLowerCase()} businesses get online and attract more customers.
-
-Would you be interested in a quick chat about how a website could help grow your business?
-
-Best regards! 🚀`;
+    // Create personalized message using onboarding data
+    const message = createPersonalizedMessage(businessName, businessType);
 
     // Encode message for URL
     const encodedMessage = encodeURIComponent(message);
@@ -1999,6 +2240,52 @@ Best regards! 🚀`;
     
     // Open WhatsApp
     window.open(whatsappUrl, '_blank');
+}
+
+function getUserCountryCode() {
+    // Get user's country from onboarding data
+    if (userOnboardingData.country) {
+        return getPhoneCodeFromCountryCode(userOnboardingData.country.toLowerCase());
+    }
+    return '1'; // Default fallback
+}
+
+function createPersonalizedMessage(businessName, businessType) {
+    const userName = userOnboardingData.name || 'there';
+    const userRole = userOnboardingData.role || 'freelancer';
+    
+    // Create role-specific introduction
+    let roleIntro = '';
+    switch(userRole) {
+        case 'freelancer':
+            roleIntro = 'I\'m a freelance web developer';
+            break;
+        case 'agency':
+            roleIntro = 'I run a web development agency';
+            break;
+        case 'consultant':
+            roleIntro = 'I\'m a digital consultant';
+            break;
+        case 'developer':
+            roleIntro = 'I\'m a web developer';
+            break;
+        case 'marketer':
+            roleIntro = 'I\'m a digital marketing specialist';
+            break;
+        default:
+            roleIntro = 'I help businesses get online';
+    }
+    
+    return `Hi ${businessName}!
+
+My name is ${userName} and ${roleIntro}. I noticed you don't have a website yet.
+
+I help ${businessType.toLowerCase()} businesses get online and attract more customers through professional websites.
+
+Would you be interested in a quick chat about how a website could help grow your business?
+
+Best regards,
+${userName}`;
 }
 
 window.initMap = initMap;
