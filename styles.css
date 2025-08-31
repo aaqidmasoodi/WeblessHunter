@@ -1477,57 +1477,68 @@ tr.selected {
 }
 /* Mobile layout reordering */
 @media (max-width: 768px) {
-    /* Overall mobile layout */
+    /* Overall mobile layout - reverse order */
     .dashboard {
         flex-direction: column;
+        display: flex;
     }
     
-    /* Sidebar becomes top header */
+    /* Main content comes FIRST on mobile */
+    .main-content {
+        order: 1; /* First - at the top */
+        display: flex;
+        flex-direction: column;
+        flex: 1;
+    }
+    
+    /* Sidebar comes SECOND on mobile */
     .sidebar {
+        order: 2; /* Second - at the bottom */
         width: 100%;
         height: auto;
         position: static;
         border-right: none;
-        border-bottom: 1px solid #e4e4e7;
+        border-top: 1px solid #e4e4e7;
         padding: 16px;
     }
     
-    /* App title in sidebar */
-    .sidebar h1 {
-        font-size: 20px;
-        text-align: center;
-        padding: 12px 0;
-        margin: 0 0 16px 0;
-        border-bottom: 1px solid #e5e7eb;
+    /* Hide app title and tagline on mobile */
+    .sidebar h1,
+    .sidebar .tagline {
+        display: none;
     }
     
-    /* Main content structure */
-    .main-content {
-        display: flex;
-        flex-direction: column;
-        flex: 1;
-    }
-    
-    /* Tab buttons when moved to main content */
-    .main-content .tab-buttons {
-        display: flex;
-        gap: 8px;
-        margin: 0;
-    }
-    
-    .tab-btn {
-        flex: 1;
-        padding: 12px 8px;
+    /* Add simple instruction for mobile */
+    .sidebar::before {
+        content: "Place a pin on the map on a location to find businesses without websites";
+        display: block;
+        background: #f9fafb;
+        padding: 12px;
+        border-radius: 6px;
         font-size: 14px;
+        color: #374151;
         text-align: center;
+        margin-bottom: 16px;
+        border: 1px solid #e5e7eb;
     }
     
-    /* Content area (map/table) */
+    /* Hide radio button controls on mobile */
+    #mapControls {
+        display: none !important;
+    }
+    
+    /* Hide location instruction text on mobile */
+    .content-area p {
+        display: none;
+    }
+    
+    /* Content area (map/table) - now at top */
     .content-area {
         flex: 1;
+        min-height: 400px;
     }
     
-    /* Map prominence */
+    /* Map prominence at top */
     #mapView {
         min-height: 400px;
     }
@@ -1536,11 +1547,11 @@ tr.selected {
         height: 400px !important;
     }
     
-    /* Toolbar controls */
+    /* Toolbar controls at top */
     .toolbar {
         padding: 12px 16px;
         background: white;
-        border-top: 1px solid #e5e7eb;
+        border-bottom: 1px solid #e5e7eb;
     }
 }
     
@@ -1684,3 +1695,4 @@ tr.selected {
         text-align: center;
     }
 }
+    /* Hide radio button controls on mobile */

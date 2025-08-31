@@ -211,9 +211,54 @@ function handleMobileLayout() {
     const tabButtons = document.querySelector('.tab-buttons');
     const mainContent = document.querySelector('.main-content');
     const sidebar = document.querySelector('.sidebar');
+    const mapView = document.getElementById('mapView');
     
+    // Find the location and search buttons
+    const locationBtn = document.querySelector('button[onclick="useCurrentLocation()"]');
+    const searchBtn = document.querySelector('#searchBtn');
+    
+    // Always move buttons below the map view (both mobile and desktop)
+    let buttonContainer = document.querySelector('.action-button-container');
+    if (!buttonContainer && (locationBtn || searchBtn)) {
+        buttonContainer = document.createElement('div');
+        buttonContainer.className = 'action-button-container';
+        buttonContainer.style.padding = '16px';
+        buttonContainer.style.background = 'white';
+        buttonContainer.style.borderTop = '1px solid #e5e7eb';
+        buttonContainer.style.display = 'flex';
+        buttonContainer.style.gap = '12px';
+        
+        if (isMobile) {
+            buttonContainer.style.flexDirection = 'column';
+        } else {
+            buttonContainer.style.flexDirection = 'row';
+        }
+        
+        // Insert directly after mapView
+        if (mapView && mapView.parentNode) {
+            mapView.parentNode.insertBefore(buttonContainer, mapView.nextSibling);
+        }
+    }
+    
+    // Update button container layout based on screen size
+    if (buttonContainer) {
+        if (isMobile) {
+            buttonContainer.style.flexDirection = 'column';
+        } else {
+            buttonContainer.style.flexDirection = 'row';
+        }
+    }
+    
+    // Move buttons to the container (for both mobile and desktop)
+    if (locationBtn && buttonContainer && locationBtn.parentElement !== buttonContainer) {
+        buttonContainer.appendChild(locationBtn);
+    }
+    if (searchBtn && buttonContainer && searchBtn.parentElement !== buttonContainer) {
+        buttonContainer.appendChild(searchBtn);
+    }
+    
+    // Handle tab buttons (mobile only)
     if (isMobile) {
-        // Move tab buttons to top of main content
         if (tabButtons && mainContent && tabButtons.parentElement !== mainContent) {
             mainContent.insertBefore(tabButtons, mainContent.firstChild);
             tabButtons.style.order = '1';
